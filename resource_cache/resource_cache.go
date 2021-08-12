@@ -125,6 +125,14 @@ type ObjectCache struct {
 	config          *CacheConfig
 }
 
+func NewCacheConfig(scheme *runtime.Scheme) *CacheConfig {
+	return &CacheConfig{
+		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
+		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		scheme:        scheme,
+	}
+}
+
 type CacheConfig struct {
 	possibleGVKs  map[schema.GroupVersionKind]bool
 	protectedGVKs map[schema.GroupVersionKind]bool

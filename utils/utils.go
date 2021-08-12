@@ -38,6 +38,15 @@ func RandString(n int) string {
 	return string(b)
 }
 
+func Contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 // Updater is a bool type object with functions attached that control when a resource should be
 // created or applied.
 type Updater bool
