@@ -83,7 +83,7 @@ func (u *Updater) Apply(ctx context.Context, cl client.Client, obj client.Object
 			verb = "updating"
 		}
 
-		return fmt.Errorf("Error %s resource %s %s", verb, kind, meta.GetName())
+		return fmt.Errorf("error %s resource %s %s: %s", verb, kind, meta.GetName(), err.Error())
 	}
 
 	return nil

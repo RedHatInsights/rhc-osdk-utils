@@ -125,11 +125,12 @@ type ObjectCache struct {
 	config          *CacheConfig
 }
 
-func NewCacheConfig(scheme *runtime.Scheme) *CacheConfig {
+func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}) *CacheConfig {
 	return &CacheConfig{
 		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
 		protectedGVKs: make(map[schema.GroupVersionKind]bool),
 		scheme:        scheme,
+		logKey:        logKey,
 	}
 }
 
@@ -142,7 +143,7 @@ type CacheConfig struct {
 		update bool
 		apply  bool
 	}
-	logKey string
+	logKey interface{}
 }
 
 type k8sResource struct {
