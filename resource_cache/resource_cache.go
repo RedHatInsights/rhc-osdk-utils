@@ -29,6 +29,11 @@ type ResourceIdent interface {
 	GetProvider() string
 	GetPurpose() string
 	GetType() client.Object
+	GetWriteNow() bool
+}
+
+type ResourceOptions struct {
+	WriteNow bool
 }
 
 // ResourceIdent is a simple struct declaring a providers identifier and the type of resource to be
@@ -39,6 +44,7 @@ type ResourceIdentSingle struct {
 	Provider string
 	Purpose  string
 	Type     client.Object
+	WriteNow bool
 }
 
 func (r ResourceIdentSingle) GetProvider() string {
@@ -53,6 +59,10 @@ func (r ResourceIdentSingle) GetType() client.Object {
 	return r.Type
 }
 
+func (r ResourceIdentSingle) GetWriteNow() bool {
+	return r.WriteNow
+}
+
 // ResourceIdent is a simple struct declaring a providers identifier and the type of resource to be
 // put into the cache. It functions as an identifier allowing multiple objects to be returned if
 // they all come from the same provider and have the same purpose. Think a list of Jobs created by
@@ -61,6 +71,7 @@ type ResourceIdentMulti struct {
 	Provider string
 	Purpose  string
 	Type     client.Object
+	WriteNow bool
 }
 
 func (r ResourceIdentMulti) GetProvider() string {
@@ -73,6 +84,10 @@ func (r ResourceIdentMulti) GetPurpose() string {
 
 func (r ResourceIdentMulti) GetType() client.Object {
 	return r.Type
+}
+
+func (r ResourceIdentMulti) GetWriteNow() bool {
+	return r.WriteNow
 }
 
 var secretCompare schema.GroupVersionKind
@@ -94,22 +109,32 @@ func (o *CacheConfig) registerGVK(obj client.Object) {
 }
 
 // NewResourceIdent is a helper function that returns a ResourceIdent object.
-func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, object client.Object) ResourceIdentSingle {
+func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentSingle {
 	o.registerGVK(object)
+	writeNow := false
+	for _, opt := range opts {
+		writeNow = opt.WriteNow
+	}
 	return ResourceIdentSingle{
 		Provider: provider,
 		Purpose:  purpose,
 		Type:     object,
+		WriteNow: writeNow,
 	}
 }
 
 // NewResourceIdent is a helper function that returns a ResourceIdent object.
-func (o *CacheConfig) NewMultiResourceIdent(provider string, purpose string, object client.Object) ResourceIdentMulti {
+func (o *CacheConfig) NewMultiResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentMulti {
 	o.registerGVK(object)
+	writeNow := false
+	for _, opt := range opts {
+		writeNow = opt.WriteNow
+	}
 	return ResourceIdentMulti{
 		Provider: provider,
 		Purpose:  purpose,
 		Type:     object,
+		WriteNow: writeNow,
 	}
 }
 
@@ -188,7 +213,7 @@ func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheCon
 }
 
 // Create first attempts to fetch the object from k8s for initial population. If this fails, the
-// blank object is stored in the cache it is imperitive that the user of this function call Create
+// blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
 
@@ -296,6 +321,20 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 			o.log.Info("UPDATE resource ", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "diff", "hidden")
 		} else {
 			o.log.Info("UPDATE resource ", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "diff", string(jsonData))
+		}
+	}
+
+	if resourceIdent.GetWriteNow() {
+		o.log.Info("INSTANT APPLY resource ", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "update", o.data[resourceIdent][nn].Update)
+
+		i := o.data[resourceIdent][nn]
+		if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
+			return err
+		}
+		if i.Status {
+			if err := o.client.Status().Update(o.ctx, i.Object); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -411,6 +450,9 @@ func (o *ObjectCache) Status(resourceIdent ResourceIdent, object client.Object) 
 // it is false, then the object will be created.
 func (o *ObjectCache) ApplyAll() error {
 	for k, v := range o.data {
+		if k.GetWriteNow() {
+			continue
+		}
 		for n, i := range v {
 			o.log.Info("APPLY resource ", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update)
 			if o.config.debugOptions.apply {
@@ -429,6 +471,7 @@ func (o *ObjectCache) ApplyAll() error {
 					o.log.Info("Update diff", "diff", text, "type", "update", "resType", i.Object.GetObjectKind().GroupVersionKind().Kind, "name", n.Name, "namespace", n.Namespace)
 				}
 			}
+
 			if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
 				return err
 			}
