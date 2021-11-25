@@ -341,6 +341,10 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 	return nil
 }
 
+func (o *ObjectCache) GetScheme() *runtime.Scheme {
+	return o.scheme
+}
+
 // Get pulls the item from the cache and populates the given empty object. An error is returned if
 // the items are of different types and also if the item is not in the cache. A get should be used
 // by a downstream provider. If modifications are made to the object, it should be updated using the
