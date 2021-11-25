@@ -10,14 +10,20 @@ jobs:
   testing:
     runs-on: ubuntu-20.04
     steps:
+      - uses: actions/setup-go@v2
+        name: Set up golang 1.16
+        with:
+          go-version: '1.16.7'
       - name: Check out source code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Install package and dependencies
         run: |
-          sudo apt-get install golang-1.13
-          mkdir kubebuilder
-          wget -P kubebuilder https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.1/kubebuilder_2.3.1_linux_amd64.tar.gz
-          tar xzvf kubebuilder/kubebuilder_2.3.1_linux_amd64.tar.gz -C kubebuilder
-          make
-      - name: Run Tests
-        run: KUBEBUILDER_ASSETS=$PWD/kubebuilder/kubebuilder_2.3.1_linux_amd64/bin go test -v ./...
+          GOBIN=$PWD go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+      - name: Install k8s
+        run: |
+          ./setup-envtest use 1.22 -p path
+          ./setup-envtest list
+      - name: Run tests
+        run: |
+          export KUBEBUILDER_ASSETS=`./setup-envtest use 1.22 -p path`
+          go test -v ./...
