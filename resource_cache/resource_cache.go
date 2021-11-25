@@ -108,7 +108,7 @@ func (o *CacheConfig) registerGVK(obj client.Object) {
 	}
 }
 
-// NewResourceIdent is a helper function that returns a ResourceIdent object.
+// NewSingleResourceIdent is a helper function that returns a ResourceIdent object.
 func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentSingle {
 	o.registerGVK(object)
 	writeNow := false
@@ -123,7 +123,7 @@ func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, ob
 	}
 }
 
-// NewResourceIdent is a helper function that returns a ResourceIdent object.
+// NewMultiResourceIdent is a helper function that returns a ResourceIdent object.
 func (o *CacheConfig) NewMultiResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentMulti {
 	o.registerGVK(object)
 	writeNow := false
