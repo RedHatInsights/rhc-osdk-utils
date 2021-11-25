@@ -150,25 +150,28 @@ type ObjectCache struct {
 	config          *CacheConfig
 }
 
-func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}) *CacheConfig {
+func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs map[schema.GroupVersionKind]bool, debugOptions DebugOptions) *CacheConfig {
 	return &CacheConfig{
 		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
-		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		protectedGVKs: protectedGVKs,
 		scheme:        scheme,
 		logKey:        logKey,
+		debugOptions:  debugOptions,
 	}
+}
+
+type DebugOptions struct {
+	create bool
+	update bool
+	apply  bool
 }
 
 type CacheConfig struct {
 	possibleGVKs  map[schema.GroupVersionKind]bool
 	protectedGVKs map[schema.GroupVersionKind]bool
 	scheme        *runtime.Scheme
-	debugOptions  struct {
-		create bool
-		update bool
-		apply  bool
-	}
-	logKey interface{}
+	debugOptions  DebugOptions
+	logKey        interface{}
 }
 
 type k8sResource struct {
