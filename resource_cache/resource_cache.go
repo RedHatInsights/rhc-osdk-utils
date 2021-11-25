@@ -161,9 +161,9 @@ func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs ma
 }
 
 type DebugOptions struct {
-	create bool
-	update bool
-	apply  bool
+	Create bool
+	Update bool
+	Apply  bool
 }
 
 type CacheConfig struct {
@@ -254,7 +254,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 	}
 
 	var jsonData []byte
-	if o.config.debugOptions.create || o.config.debugOptions.apply {
+	if o.config.debugOptions.Create || o.config.debugOptions.Apply {
 		jsonData, _ = json.MarshalIndent(object, "", "  ")
 	}
 
@@ -265,7 +265,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 		jsonData: string(jsonData),
 	}
 
-	if o.config.debugOptions.create {
+	if o.config.debugOptions.Create {
 		diffVal := "hidden"
 
 		if object.GetObjectKind().GroupVersionKind() != secretCompare {
@@ -317,7 +317,7 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 
 	o.data[resourceIdent][nn].Object = object.DeepCopyObject().(client.Object)
 
-	if o.config.debugOptions.update {
+	if o.config.debugOptions.Update {
 		var jsonData []byte
 		jsonData, _ = json.MarshalIndent(o.data[resourceIdent][nn].Object, "", "  ")
 		if object.GetObjectKind().GroupVersionKind() == secretCompare {
@@ -462,7 +462,7 @@ func (o *ObjectCache) ApplyAll() error {
 		}
 		for n, i := range v {
 			o.log.Info("APPLY resource ", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update)
-			if o.config.debugOptions.apply {
+			if o.config.debugOptions.Apply {
 				jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
 				diff := difflib.UnifiedDiff{
 					A:        difflib.SplitLines(string(jsonData)),
