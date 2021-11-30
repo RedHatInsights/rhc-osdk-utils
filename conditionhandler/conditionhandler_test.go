@@ -11,11 +11,11 @@ import (
 
 func TestConditionSearch(t *testing.T) {
 
-	var Bing ConditionType = "Bing"
-	var Boo ConditionType = "Boo"
-	var Bloop ConditionType = "Bloop"
+	var Bing = "Bing"
+	var Boo = "Boo"
+	var Bloop = "Bloop"
 
-	conditions := []Condition{{
+	conditions := []v1.Condition{{
 		Type:    Bing,
 		Status:  v1.ConditionTrue,
 		Reason:  "Not sure",
@@ -26,13 +26,13 @@ func TestConditionSearch(t *testing.T) {
 	assert.Equal(t, idx, 0)
 	assert.Equal(t, cond.Type, Bing)
 
-	idx, _ = GetCondition(&[]Condition{}, Boo)
+	idx, _ = GetCondition(&[]v1.Condition{}, Boo)
 	assert.Equal(t, idx, -1)
 
 	stTime := v1.Now()
 	fmt.Printf("ST%v\n", stTime)
 
-	update := UpdateCondition(&conditions, &Condition{
+	update := UpdateCondition(&conditions, &v1.Condition{
 		Type:    Bloop,
 		Status:  v1.ConditionFalse,
 		Reason:  "I'm sure",
@@ -46,7 +46,7 @@ func TestConditionSearch(t *testing.T) {
 
 	time.Sleep(time.Second * 2)
 
-	update = UpdateCondition(&conditions, &Condition{
+	update = UpdateCondition(&conditions, &v1.Condition{
 		Type:    Bloop,
 		Status:  v1.ConditionFalse,
 		Reason:  "I'm sure",
@@ -59,7 +59,7 @@ func TestConditionSearch(t *testing.T) {
 	duration := cond.LastTransitionTime.Sub(stTime.Time)
 	assert.Check(t, duration < time.Second)
 
-	UpdateCondition(&conditions, &Condition{
+	UpdateCondition(&conditions, &v1.Condition{
 		Type:               Bloop,
 		Status:             v1.ConditionTrue,
 		LastTransitionTime: v1.Time{},
