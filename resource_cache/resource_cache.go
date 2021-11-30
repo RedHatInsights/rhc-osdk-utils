@@ -98,19 +98,8 @@ func init() {
 	secretCompare, _ = utils.GetKindFromObj(scheme, &core.Secret{})
 }
 
-func (o *CacheConfig) registerGVK(obj client.Object) {
-	gvk, _ := utils.GetKindFromObj(o.scheme, obj)
-	if _, ok := o.protectedGVKs[gvk]; !ok {
-		if _, ok := o.possibleGVKs[gvk]; !ok {
-			o.possibleGVKs[gvk] = true
-			fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
-		}
-	}
-}
-
 // NewSingleResourceIdent is a helper function that returns a ResourceIdent object.
-func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentSingle {
-	o.registerGVK(object)
+func NewSingleResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentSingle {
 	writeNow := false
 	for _, opt := range opts {
 		writeNow = opt.WriteNow
@@ -124,8 +113,7 @@ func (o *CacheConfig) NewSingleResourceIdent(provider string, purpose string, ob
 }
 
 // NewMultiResourceIdent is a helper function that returns a ResourceIdent object.
-func (o *CacheConfig) NewMultiResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentMulti {
-	o.registerGVK(object)
+func NewMultiResourceIdent(provider string, purpose string, object client.Object, opts ...ResourceOptions) ResourceIdentMulti {
 	writeNow := false
 	for _, opt := range opts {
 		writeNow = opt.WriteNow
@@ -215,11 +203,21 @@ func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheCon
 	}
 }
 
+func (o *ObjectCache) registerGVK(obj client.Object) {
+	gvk, _ := utils.GetKindFromObj(o.scheme, obj)
+	if _, ok := o.config.protectedGVKs[gvk]; !ok {
+		if _, ok := o.config.possibleGVKs[gvk]; !ok {
+			o.config.possibleGVKs[gvk] = true
+			fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
+		}
+	}
+}
+
 // Create first attempts to fetch the object from k8s for initial population. If this fails, the
 // blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
-
+	o.registerGVK(object)
 	update, err := utils.UpdateOrErr(o.client.Get(o.ctx, nn, object))
 
 	if err != nil {

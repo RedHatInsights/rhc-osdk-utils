@@ -170,7 +170,7 @@ func TestObjectCache(t *testing.T) {
 		return
 	}
 
-	MultiIdent := config.NewMultiResourceIdent("TEST", "MULTI", &core.Service{})
+	MultiIdent := NewMultiResourceIdent("TEST", "MULTI", &core.Service{})
 
 	sm := core.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -241,7 +241,7 @@ func TestObjectCache(t *testing.T) {
 		return
 	}
 
-	TemplateIdent := config.NewSingleResourceIdent("TEST", "TEMPLATE", &core.Pod{})
+	TemplateIdent := NewSingleResourceIdent("TEST", "TEMPLATE", &core.Pod{})
 
 	tnn := types.NamespacedName{
 		Name:      "template",
