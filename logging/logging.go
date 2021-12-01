@@ -12,7 +12,7 @@ import (
 	pgm "github.com/redhatinsights/platform-go-middlewares/logging/cloudwatch"
 )
 
-func SetupLogging() (*zzap.Logger, error) {
+func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
 	fn := zzap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return true
 	})
@@ -30,7 +30,7 @@ func SetupLogging() (*zzap.Logger, error) {
 	}
 	region := os.Getenv("AWS_CW_REGION")
 
-	if key != "" {
+	if !disableCloudwatch && key != "" {
 		cred := credentials.NewStaticCredentials(key, secret, "")
 		cfg := aws.NewConfig().WithRegion(region).WithCredentials(cred)
 		cwLogger, err := pgm.NewBatchingHook(group, stream, cfg, time.Second*5)
