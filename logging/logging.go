@@ -18,7 +18,8 @@ func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
 	})
 
 	consoleOutput := zapcore.Lock(os.Stdout)
-	consoleEncoder := zapcore.NewConsoleEncoder(zzap.NewDevelopmentEncoderConfig())
+	consoleEncoder := zapcore.NewJSONEncoder(zzap.NewProductionEncoderConfig())
+
 	var core zapcore.Core
 
 	key := os.Getenv("AWS_CW_KEY")
