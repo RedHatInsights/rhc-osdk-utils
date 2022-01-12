@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,14 +99,26 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
+type Key string
+
 func TestObjectCache(t *testing.T) {
 
 	config := CacheConfig{
 		scheme:        scheme,
 		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
 		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		logKey:        Key("bunk"),
 	}
-	oCache := NewObjectCache(context.Background(), k8sClient, &config)
+	var log logr.Logger
+
+	ctx := context.Background()
+	zapLog, _ := zap.NewDevelopment()
+
+	log = zapr.NewLogger(zapLog)
+
+	ctx = context.WithValue(ctx, Key("bunk"), &log)
+
+	oCache := NewObjectCache(ctx, k8sClient, &config)
 
 	nn := types.NamespacedName{
 		Name:      "test-service",
