@@ -14,6 +14,8 @@ import (
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -163,10 +165,11 @@ type CacheConfig struct {
 }
 
 type k8sResource struct {
-	Object   client.Object
-	Update   utils.Updater
-	Status   bool
-	jsonData string
+	Object     client.Object
+	Update     utils.Updater
+	Status     bool
+	jsonData   string
+	origObject client.Object
 }
 
 // NewObjectCache returns an instance of the ObjectCache which defers all applys until the end of
@@ -300,6 +303,8 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 		return fmt.Errorf("object not found in cache, cannot update")
 	}
 
+	o.data[resourceIdent][nn].origObject = o.data[resourceIdent][nn].Object.DeepCopyObject().(client.Object)
+
 	var gvk, obGVK schema.GroupVersionKind
 	if gvk, err = utils.GetKindFromObj(o.scheme, resourceIdent.GetType()); err != nil {
 		return err
@@ -326,12 +331,35 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 	}
 
 	if resourceIdent.GetWriteNow() {
-		o.log.Info("INSTANT APPLY resource ", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "update", o.data[resourceIdent][nn].Update)
-
 		i := o.data[resourceIdent][nn]
-		if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
-			return err
+
+		if o.config.debugOptions.Apply {
+			jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
+			diff := difflib.UnifiedDiff{
+				A:        difflib.SplitLines(string(jsonData)),
+				B:        difflib.SplitLines(i.jsonData),
+				FromFile: "old",
+				ToFile:   "new",
+				Context:  3,
+			}
+			text, _ := difflib.GetUnifiedDiffString(diff)
+			if i.Object.GetObjectKind().GroupVersionKind() == secretCompare {
+				o.log.Info("Update diff", "diff", "hidden", "type", "update", "resType", i.Object.GetObjectKind().GroupVersionKind().Kind, "name", nn.Name, "namespace", nn.Namespace)
+			} else {
+				o.log.Info("Update diff", "diff", text, "type", "update", "resType", i.Object.GetObjectKind().GroupVersionKind().Kind, "name", nn.Name, "namespace", nn.Namespace)
+			}
 		}
+
+		if !equality.Semantic.DeepEqual(i.origObject, i.Object) || !bool(i.Update) {
+			o.log.Info("INSTANT APPLY resource ", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", false)
+
+			if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
+				return err
+			}
+		} else {
+			o.log.Info("INSTANT APPLY resource (skipped)", "namespace", nn.Namespace, "name", nn.Name, "provider", resourceIdent.GetProvider(), "purpose", resourceIdent.GetPurpose(), "kind", object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", true)
+		}
+
 		if i.Status {
 			if err := o.client.Status().Update(o.ctx, i.Object); err != nil {
 				return err
@@ -459,7 +487,6 @@ func (o *ObjectCache) ApplyAll() error {
 			continue
 		}
 		for n, i := range v {
-			o.log.Info("APPLY resource ", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update)
 			if o.config.debugOptions.Apply {
 				jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
 				diff := difflib.UnifiedDiff{
@@ -477,9 +504,15 @@ func (o *ObjectCache) ApplyAll() error {
 				}
 			}
 
-			if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
-				return err
+			if !equality.Semantic.DeepEqual(i.origObject, i.Object) || !bool(i.Update) {
+				o.log.Info("APPLY resource ", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", false)
+				if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
+					return err
+				}
+			} else {
+				o.log.Info("APPLY resource (skipped)", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", true)
 			}
+
 			if i.Status {
 				if err := o.client.Status().Update(o.ctx, i.Object); err != nil {
 					return err

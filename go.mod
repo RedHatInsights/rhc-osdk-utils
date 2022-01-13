@@ -6,6 +6,7 @@ require (
 	github.com/RedHatInsights/go-difflib v1.0.0
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/zapr v0.4.0
 	github.com/redhatinsights/platform-go-middlewares v0.10.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.19.0
