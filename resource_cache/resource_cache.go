@@ -260,10 +260,11 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 	}
 
 	o.data[resourceIdent][nn] = &k8sResource{
-		Object:   object.DeepCopyObject().(client.Object),
-		Update:   update,
-		Status:   false,
-		jsonData: string(jsonData),
+		Object:     object.DeepCopyObject().(client.Object),
+		Update:     update,
+		Status:     false,
+		jsonData:   string(jsonData),
+		origObject: object.DeepCopyObject().(client.Object),
 	}
 
 	if o.config.debugOptions.Create {
@@ -302,8 +303,6 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 	if _, ok := o.data[resourceIdent][nn]; !ok {
 		return fmt.Errorf("object not found in cache, cannot update")
 	}
-
-	o.data[resourceIdent][nn].origObject = o.data[resourceIdent][nn].Object.DeepCopyObject().(client.Object)
 
 	var gvk, obGVK schema.GroupVersionKind
 	if gvk, err = utils.GetKindFromObj(o.scheme, resourceIdent.GetType()); err != nil {
