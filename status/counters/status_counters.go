@@ -71,6 +71,9 @@ func kafkaConnectStatusChecker(kafkaConnect strimzi.KafkaConnect) bool {
 	return false
 }
 
+//I don't see a reasonable way to unit test these public methods. Maybe, just maybe, they shouldn't even be in this lib. We'll jump
+//off that bridge later. These methods are tied deeply to specific concerns of a ClowdEnvironment. If no one else cares about these
+//we might want to push them out into Clowder
 func CountKafkas(ctx context.Context, pClient client.Client, statusSource statusTypes.StatusSource, namespaces []string) (int32, int32, string, error) {
 	var managedKafkas int32
 	var readyKafka int32
