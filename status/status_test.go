@@ -16,14 +16,16 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type Client struct {
-	mock.Mock
-}
 type RESTMapper struct {
 	meta.RESTMapper
 }
 type StatusWriter struct {
 	client.StatusWriter
+}
+
+//In which we mock the K8s client public API :shrug:
+type Client struct {
+	mock.Mock
 }
 
 func (c *Client) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
@@ -69,6 +71,7 @@ func (c *Client) Status() client.StatusWriter {
 	return s
 }
 
+//Noop implementation of our own interface
 type StatusSourceMock struct {
 	status             bool
 	ManagedDeployments int32
@@ -106,6 +109,7 @@ func Prereqs() (*Client, context.Context, StatusSourceMock) {
 	return mock, ctx, ss
 }
 
+//We only test public methods. Kafka counting public methods are omitted. See note in counters/status_counters.go
 func TestGetResourceFigures(t *testing.T) {
 	mock, ctx, ss := Prereqs()
 
