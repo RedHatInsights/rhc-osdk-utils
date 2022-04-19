@@ -72,6 +72,7 @@ func deploymentStatusChecker(deployment apps.Deployment) bool {
 }
 
 //Gets resource figures for a given StatusSource. Allows for custom figures via the GetObjectSpecificFigures call
+//Note: if using in Clowder you may want to errors.Wrap(err) the err we return here
 func GetResourceFigures(ctx context.Context, client client.Client, statusSource statusTypes.StatusSource) (statusTypes.StatusSourceFigures, string, error) {
 	figures := statusTypes.StatusSourceFigures{}
 	msg := ""
