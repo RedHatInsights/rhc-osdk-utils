@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RedHatInsights/clowder/controllers/cloud.redhat.com/errors"
 	apps "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -78,12 +77,12 @@ func GetResourceFigures(ctx context.Context, client client.Client, statusSource 
 	msg := ""
 	namespaces, err := statusSource.GetNamespaces(ctx, client)
 	if err != nil {
-		return figures, "", errors.Wrap("get namespaces: ", err)
+		return figures, "get namespaces: ", err
 	}
 
 	managedDeployments, readyDeployments, _, err := countDeployments(ctx, client, statusSource, namespaces)
 	if err != nil {
-		return figures, "", errors.Wrap("count deploys: ", err)
+		return figures, "count deploys: ", err
 	}
 
 	figures.ManagedDeployments += managedDeployments
