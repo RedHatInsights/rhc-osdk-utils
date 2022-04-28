@@ -4,12 +4,13 @@ go 1.16
 
 require (
 	github.com/RedHatInsights/go-difflib v1.0.0
-	github.com/RedHatInsights/strimzi-client-go v0.26.0
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.4.0
-	github.com/gobuffalo/flect v0.2.4 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.17.0 // indirect
@@ -29,6 +30,7 @@ require (
 	k8s.io/client-go v0.22.4
 	k8s.io/klog/v2 v2.10.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
-	sigs.k8s.io/cluster-api v1.0.1
+	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
 	sigs.k8s.io/controller-runtime v0.10.3
+	sigs.k8s.io/yaml v1.3.0 // indirect
 )
