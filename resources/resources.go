@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,6 +18,20 @@ type ResourceConditionReadyRequirements struct {
 	Status string
 }
 
+//Represents the metadata we pull off the unstructured resource
+type ResourceMetadata struct {
+	Generation      int64
+	Namespace       string
+	Name            string
+	UID             string
+	ResourceVersion int64
+	OwnerUID        string
+}
+
+type ResourceStatus struct {
+	ObservedGeneration int64
+}
+
 //Represents a k8s resource in a type-neutral way
 //We used to have lots of repeated code because we needed to perform
 //the same operations on different resources, which are represented by
@@ -26,31 +39,26 @@ type ResourceConditionReadyRequirements struct {
 //type that can represent any kind of resource and perform common
 //actions
 type Resource struct {
-	source         unstructured.Unstructured
-	status         map[string]string
-	metadata       map[string]string
-	conditions     []map[string]string
-	conditionClass ResourceConditionReadyRequirements
-}
-
-//Gets metadata for a given key
-func (r *Resource) GetMetadata(key string) string {
-	return r.metadata[key]
+	Source         unstructured.Unstructured
+	Status         ResourceStatus
+	Metadata       ResourceMetadata
+	Conditions     []map[string]string
+	ConditionClass ResourceConditionReadyRequirements
 }
 
 //Sets the resource ready requirements
 func (r *Resource) SetReadyRequirements(class ResourceConditionReadyRequirements) {
-	r.conditionClass = class
+	r.ConditionClass = class
 }
 
 //Returns true of the resource is owned by the given guid
 func (r *Resource) IsOwnedBy(ownerUID string) bool {
-	return r.metadata["ownerUID"] == ownerUID
+	return r.Metadata.OwnerUID == ownerUID
 }
 
 //Parses a resource unstructured object to populate this Resource object
 func (r *Resource) Parse(uObject unstructured.Unstructured) {
-	r.source = uObject
+	r.Source = uObject
 	r.parseMetadata()
 	r.parseStatusConditions()
 	r.parseStatus()
@@ -63,8 +71,8 @@ func (r *Resource) IsReady() bool {
 
 //Returns true of the ready conditions are found
 func (r *Resource) readyConditionFound() bool {
-	for _, condition := range r.conditions {
-		if condition["type"] == r.conditionClass.Type && condition["status"] == r.conditionClass.Status {
+	for _, condition := range r.Conditions {
+		if condition["type"] == r.ConditionClass.Type && condition["status"] == r.ConditionClass.Status {
 			return true
 		}
 	}
@@ -73,45 +81,33 @@ func (r *Resource) readyConditionFound() bool {
 
 //Returns true of the generation numbers are correct
 func (r *Resource) generationNumbersMatch() bool {
-	retVal := false
-
-	observedGeneration, errOne := strconv.ParseInt(r.status["observedGeneration"], 10, 64)
-	if errOne != nil {
-		return retVal
-	}
-
-	generation, errTwo := strconv.ParseInt(r.metadata["generation"], 10, 64)
-	if errTwo != nil {
-		return retVal
-	}
-
-	return generation > observedGeneration
+	return r.Metadata.Generation > r.Status.ObservedGeneration
 }
 
 //Parses the unstructured source metadata into this Resource object's metadata map
 func (r *Resource) parseMetadata() {
-	metadata := map[string]string{}
-	rawMetadata := r.source.Object["metadata"].(map[string]interface{})
-	metadata["generation"] = rawMetadata["generation"].(string)
-	metadata["namespace"] = rawMetadata["namepsace"].(string)
-	metadata["name"] = rawMetadata["name"].(string)
-	metadata["UID"] = rawMetadata["uid"].(string)
-	metadata["resourceVersion"] = rawMetadata["resourceVersion"].(string)
-	metadata["generation"] = rawMetadata["generation"].(string)
-	metadata["ownerUID"] = rawMetadata["ownerReferences"].(map[string]interface{})["uid"].(string)
-	r.metadata = metadata
+	rawMetadata := r.Source.Object["metadata"].(map[string]interface{})
+	r.Metadata = ResourceMetadata{
+		Generation:      rawMetadata["generation"].(int64),
+		Namespace:       rawMetadata["namepsace"].(string),
+		Name:            rawMetadata["name"].(string),
+		UID:             rawMetadata["uid"].(string),
+		ResourceVersion: rawMetadata["resourceVersion"].(int64),
+		OwnerUID:        rawMetadata["ownerReferences"].(map[string]interface{})["uid"].(string),
+	}
 }
 
 //Parses a subset of the unstructures source status
 func (r *Resource) parseStatus() {
-	statusSource := r.source.Object["status"].(map[string]interface{})
-	status := map[string]string{}
-	status["observedGeneration"] = statusSource["observedGeneration"].(string)
+	statusSource := r.Source.Object["status"].(map[string]interface{})
+	r.Status = ResourceStatus{
+		ObservedGeneration: statusSource["observedGeneration"].(int64),
+	}
 }
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
 func (r *Resource) parseStatusConditions() {
-	status := r.source.Object["status"].(map[string]interface{})
+	status := r.Source.Object["status"].(map[string]interface{})
 	//Get the conditions from the status object as an array
 	conditions := status["conditions"].([]interface{})
 	//Iterate over the conditions
@@ -129,7 +125,7 @@ func (r *Resource) parseStatusConditions() {
 			"reason": condReason,
 		}
 		//Add it to the output
-		r.conditions = append(r.conditions, outputConditionMap)
+		r.Conditions = append(r.Conditions, outputConditionMap)
 	}
 }
 
@@ -319,7 +315,7 @@ func (r *ResourceCounter) countInNamespace(ctx context.Context, pClient client.C
 //Generates the text broken resource log
 func (r *ResourceCounter) generateBrokenLog(brokenResourceList []Resource) {
 	for _, resource := range brokenResourceList {
-		r.BrokenLog = append(r.BrokenLog, fmt.Sprintf("%s/%s", resource.GetMetadata("name"), resource.GetMetadata("namespace")))
+		r.BrokenLog = append(r.BrokenLog, fmt.Sprintf("%s/%s", resource.Metadata.Name, resource.Metadata.Namespace))
 	}
 }
 
