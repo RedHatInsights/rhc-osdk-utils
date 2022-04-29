@@ -24,8 +24,8 @@ type ResourceMetadata struct {
 	Namespace       string
 	Name            string
 	UID             string
-	ResourceVersion int64
-	OwnerUID        string
+	ResourceVersion string
+	OwnerReferences []string
 }
 
 type ResourceStatus struct {
@@ -53,7 +53,12 @@ func (r *Resource) SetReadyRequirements(class ResourceConditionReadyRequirements
 
 //Returns true of the resource is owned by the given guid
 func (r *Resource) IsOwnedBy(ownerUID string) bool {
-	return r.Metadata.OwnerUID == ownerUID
+	for _, ownerRef := range r.Metadata.OwnerReferences {
+		if ownerRef == ownerUID {
+			return true
+		}
+	}
+	return false
 }
 
 //Parses a resource unstructured object to populate this Resource object
@@ -87,13 +92,21 @@ func (r *Resource) generationNumbersMatch() bool {
 //Parses the unstructured source metadata into this Resource object's metadata map
 func (r *Resource) parseMetadata() {
 	rawMetadata := r.Source.Object["metadata"].(map[string]interface{})
+
+	rawOwnerReferences := rawMetadata["ownerReferences"].([]interface{})
+	var ownerReferences []string
+
+	for _, ownerReference := range rawOwnerReferences {
+		ownerReferences = append(ownerReferences, ownerReference.(map[string]interface{})["uid"].(string))
+	}
+
 	r.Metadata = ResourceMetadata{
 		Generation:      rawMetadata["generation"].(int64),
-		Namespace:       rawMetadata["namepsace"].(string),
+		Namespace:       rawMetadata["namespace"].(string),
 		Name:            rawMetadata["name"].(string),
 		UID:             rawMetadata["uid"].(string),
-		ResourceVersion: rawMetadata["resourceVersion"].(int64),
-		OwnerUID:        rawMetadata["ownerReferences"].(map[string]interface{})["uid"].(string),
+		ResourceVersion: rawMetadata["resourceVersion"].(string),
+		OwnerReferences: ownerReferences,
 	}
 }
 
