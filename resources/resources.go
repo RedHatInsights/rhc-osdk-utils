@@ -110,17 +110,35 @@ func (r *Resource) parseMetadata() {
 	}
 }
 
+func (r *Resource) interfaceMapHasKey(inMap map[string]interface{}, key string) bool {
+	_, ok := inMap[key]
+	return ok
+}
+
 //Parses a subset of the unstructures source status
 func (r *Resource) parseStatus() {
 	statusSource := r.Source.Object["status"].(map[string]interface{})
+
+	//observed
+	var observedGen int64
+
+	if r.interfaceMapHasKey(statusSource, "observedGeneration") {
+		observedGen = statusSource["observedGeneration"].(int64)
+	}
+
 	r.Status = ResourceStatus{
-		ObservedGeneration: statusSource["observedGeneration"].(int64),
+		ObservedGeneration: observedGen,
 	}
 }
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
 func (r *Resource) parseStatusConditions() {
 	status := r.Source.Object["status"].(map[string]interface{})
+
+	if !r.interfaceMapHasKey(status, "conditions") {
+		return
+	}
+
 	//Get the conditions from the status object as an array
 	conditions := status["conditions"].([]interface{})
 	//Iterate over the conditions
