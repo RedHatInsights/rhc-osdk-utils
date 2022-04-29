@@ -86,7 +86,7 @@ func (r *Resource) readyConditionFound() bool {
 
 //Returns true of the generation numbers are correct
 func (r *Resource) generationNumbersMatch() bool {
-	return r.Metadata.Generation > r.Status.ObservedGeneration
+	return r.Metadata.Generation <= r.Status.ObservedGeneration
 }
 
 //Parses the unstructured source metadata into this Resource object's metadata map
@@ -167,11 +167,6 @@ func (r *Resource) parseStatusConditions() {
 type ResourceList struct {
 	source    unstructured.UnstructuredList
 	Resources []Resource
-}
-
-//Get a resource by a provided index
-func (r *ResourceList) GetResourceByIndex(index int) Resource {
-	return r.Resources[index]
 }
 
 //Get a count of the resources
@@ -274,9 +269,12 @@ func (r *ResourceList) parseSource() {
 
 //Set the resource requirements for all of the resources in the list
 func (r *ResourceList) SetReadyRequirements(reqs ResourceConditionReadyRequirements) {
+	var updatedResources = []Resource{}
 	for _, resource := range r.Resources {
 		resource.SetReadyRequirements(reqs)
+		updatedResources = append(updatedResources, resource)
 	}
+	r.Resources = updatedResources
 }
 
 //Results that a resource counter provides back when its count method is called
@@ -331,16 +329,16 @@ func (r *ResourceCounter) Count(ctx context.Context, pClient client.Client) Reso
 
 //Counts up the managed resources in a given namespace
 func (r *ResourceCounter) countInNamespace(ctx context.Context, pClient client.Client, namespace string) {
-	deployments := ResourceList{}
-	deployments.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
+	resources := ResourceList{}
+	resources.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
 
-	deployments = deployments.FilterByOwnerUID(r.Query.OwnerGUID)
+	resources.SetReadyRequirements(r.ReadyRequirements)
 
-	deployments.SetReadyRequirements(r.ReadyRequirements)
+	resources = resources.FilterByOwnerUID(r.Query.OwnerGUID)
 
-	r.CountManaged += deployments.Count()
-	r.CountReady += deployments.CountReady()
-	r.generateBrokenLog(deployments.GetBrokenResources())
+	r.CountManaged += resources.Count()
+	r.CountReady += resources.CountReady()
+	r.generateBrokenLog(resources.GetBrokenResources())
 }
 
 //Generates the text broken resource log
