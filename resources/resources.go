@@ -11,6 +11,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+//An operator is interested in how many of a resource it manages and how many are ready
+type ResourceFigures struct {
+	Total int32
+	Ready int32
+}
+
 //In order to status check resources we check their status conditions for a condition
 //with a specific type and status. This type lets us define and pass those values around
 type ResourceConditionReadyRequirements struct {
@@ -28,6 +34,8 @@ type ResourceMetadata struct {
 	OwnerReferences []string
 }
 
+//Represents the status we pull off the unstructured resource
+//I only parse what I need to reduce the oppurtunity for bugs
 type ResourceStatus struct {
 	ObservedGeneration int64
 }
@@ -75,6 +83,7 @@ func (r *Resource) IsReady() bool {
 }
 
 //Returns true of the ready conditions are found
+//We only care to find one matching condition. Not all need to match to be Ready
 func (r *Resource) readyConditionFound() bool {
 	for _, condition := range r.Conditions {
 		if condition["type"] == r.ConditionClass.Type && condition["status"] == r.ConditionClass.Status {
@@ -121,6 +130,7 @@ func (r *Resource) parseStatus() {
 
 	//observed
 	var observedGen int64
+	observedGen = -1
 
 	if r.interfaceMapHasKey(statusSource, "observedGeneration") {
 		observedGen = statusSource["observedGeneration"].(int64)
@@ -135,6 +145,8 @@ func (r *Resource) parseStatus() {
 func (r *Resource) parseStatusConditions() {
 	status := r.Source.Object["status"].(map[string]interface{})
 
+	//If the source object doesn't have conditions we can just bail
+	//They don't need to be there, we'll just get not ready without them which is fine
 	if !r.interfaceMapHasKey(status, "conditions") {
 		return
 	}
@@ -293,6 +305,8 @@ type ResourceCounterQuery struct {
 }
 
 /* GVK Examples
+Forgive this weird comment but I find myself needing to look these up a lot
+Chances are if you are working on this code you'll need some examples :)
 schema.GroupVersionKind{
 	Group:   "kafka.strimzi.io",
 	Kind:    "Kafka",
@@ -353,7 +367,7 @@ func (r *ResourceCounter) getBrokenMessage() string {
 	retVal := ""
 	if len(r.BrokenLog) > 0 {
 		sort.Strings(r.BrokenLog)
-		retVal = fmt.Sprintf("broken deployments: [%s]", strings.Join(r.BrokenLog, ", "))
+		retVal = fmt.Sprintf("broken resources: [%s]", strings.Join(r.BrokenLog, ", "))
 	}
 	return retVal
 }
