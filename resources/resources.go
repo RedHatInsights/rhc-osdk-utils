@@ -242,6 +242,12 @@ func (r *ResourceList) FilterByOwnerUID(ownerUID string) ResourceList {
 	return newResourceList
 }
 
+//Set the source unstructured list and then parse it
+func (r *ResourceList) SetListAndParse(uList unstructured.UnstructuredList) {
+	r.source = uList
+	r.parseSource()
+}
+
 //Gets a ResourceList by a provided GVK and Namespace
 func (r *ResourceList) GetByGVKAndNamespace(pClient client.Client, ctx context.Context, namespace string, gvk schema.GroupVersionKind) error {
 	unstructuredObjects := unstructured.Unstructured{}
@@ -262,12 +268,9 @@ func (r *ResourceList) GetByGVKAndNamespace(pClient client.Client, ctx context.C
 		return err
 	}
 
-	r.source = *uList
-
-	r.parseSource()
+	r.SetListAndParse(*uList)
 
 	return nil
-
 }
 
 //Parses the source unstructured.UnstructuredList into an array of Resources
@@ -332,7 +335,8 @@ type ResourceCounter struct {
 //Counts the resources
 func (r *ResourceCounter) Count(ctx context.Context, pClient client.Client) ResourceCounterResults {
 	for _, namespace := range r.Query.Namespaces {
-		r.countInNamespace(ctx, pClient, namespace)
+		resourceList := r.GetResourceList(pClient, ctx, namespace)
+		r.countInNamespace(resourceList)
 	}
 	return ResourceCounterResults{
 		Managed:       r.CountManaged,
@@ -342,10 +346,7 @@ func (r *ResourceCounter) Count(ctx context.Context, pClient client.Client) Reso
 }
 
 //Counts up the managed resources in a given namespace
-func (r *ResourceCounter) countInNamespace(ctx context.Context, pClient client.Client, namespace string) {
-	resources := ResourceList{}
-	resources.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
-
+func (r *ResourceCounter) countInNamespace(resources ResourceList) {
 	resources.SetReadyRequirements(r.ReadyRequirements)
 
 	resources = resources.FilterByOwnerUID(r.Query.OwnerGUID)
@@ -353,6 +354,12 @@ func (r *ResourceCounter) countInNamespace(ctx context.Context, pClient client.C
 	r.CountManaged += resources.Count()
 	r.CountReady += resources.CountReady()
 	r.generateBrokenLog(resources.GetBrokenResources())
+}
+
+func (r *ResourceCounter) GetResourceList(pClient client.Client, ctx context.Context, namespace string) ResourceList {
+	resources := ResourceList{}
+	resources.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
+	return resources
 }
 
 //Generates the text broken resource log
