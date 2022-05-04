@@ -409,50 +409,22 @@ func (o *ObjectCache) Get(resourceIdent ResourceIdent, object client.Object, nn 
 
 // List returns a list of objects stored in the cache for the given ResourceIdent. This list
 // behanves like a standard k8s List object although the revision cannot be relied upon. It is
-// simply to return something that is familiar to users of k8s client-go. It internally converts the
-// objects in the list to JSON and adds them to a JSON string, before converting the entire object
-// into a List object of the type passed in by the user.
+// simply to return something that is familiar to users of k8s client-go.
 func (o *ObjectCache) List(resourceIdent ResourceIdentMulti, object runtime.Object) error {
 	oMap := o.data[resourceIdent]
 
-	gvCopy := core.SchemeGroupVersion
-	negotiator := runtime.NewClientNegotiator(clientgoscheme.Codecs.WithoutConversion(), gvCopy)
-	encoder, err := negotiator.Encoder("application/json", nil)
-
-	if err != nil {
-		return err
-	}
-
-	decoder, err := negotiator.Decoder("application/json", nil)
-
-	if err != nil {
-		return err
-	}
-
-	data := []byte("{\"metadata\":{\"resourceVersion\":\"1\"},\"items\":[")
+	uList := unstructured.UnstructuredList{}
 
 	for _, v := range oMap {
-
-		bt, err := runtime.Encode(encoder, v.Object)
-
+		uobj := unstructured.Unstructured{}
+		err := o.scheme.Convert(v.Object, &uobj, o.ctx)
+		uobj.SetGroupVersionKind(v.Object.GetObjectKind().GroupVersionKind())
 		if err != nil {
-			return err
+			return fmt.Errorf("d: %s", err)
 		}
-
-		data = append(data, bt...)
-		data = append(data, []byte(",")...)
-
+		uList.Items = append(uList.Items, uobj)
 	}
-
-	endstring := []byte("]}")
-
-	if len(oMap) > 0 {
-		data = data[0 : len(data)-1]
-	}
-
-	data = append(data, endstring...)
-
-	err = runtime.DecodeInto(decoder, data, object)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(uList.UnstructuredContent(), object)
 
 	if err != nil {
 		return err
