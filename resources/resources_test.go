@@ -138,7 +138,7 @@ func TestFilterResourceListByGUID(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.SetReadyRequirements(ResourceConditionReadyRequirements{
+	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -163,7 +163,7 @@ func TestReadyResourceList(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.SetReadyRequirements(ResourceConditionReadyRequirements{
+	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -186,7 +186,7 @@ func TestMixedResourceList(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.SetReadyRequirements(ResourceConditionReadyRequirements{
+	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -248,7 +248,7 @@ func TestResourceCounterMixedMultipleNamespaces(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.SetReadyRequirements(ResourceConditionReadyRequirements{
+	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -289,7 +289,7 @@ func TestResourceCounterMixedSingleNamespaces(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.SetReadyRequirements(ResourceConditionReadyRequirements{
+	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -305,7 +305,7 @@ func TestReadyDeployment(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentReady)
 	r := Resource{}
 	r.Parse(unstruct)
-	r.SetReadyRequirements(ResourceConditionReadyRequirements{
+	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -319,7 +319,7 @@ func TestReadyDeploymentWithWrongReadyRequirements(t *testing.T) {
 	r := Resource{}
 	r.Parse(unstruct)
 
-	r.SetReadyRequirements(ResourceConditionReadyRequirements{
+	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "What?",
 	})
@@ -333,7 +333,7 @@ func TestBadConditionsDeployment(t *testing.T) {
 	r := Resource{}
 	r.Parse(unstruct)
 
-	r.SetReadyRequirements(ResourceConditionReadyRequirements{
+	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -347,7 +347,7 @@ func TestNoConditionsDeployment(t *testing.T) {
 	r := Resource{}
 	r.Parse(unstruct)
 
-	r.SetReadyRequirements(ResourceConditionReadyRequirements{
+	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
@@ -361,7 +361,7 @@ func TestBadGenerationDeployment(t *testing.T) {
 	r := Resource{}
 	r.Parse(unstruct)
 
-	r.SetReadyRequirements(ResourceConditionReadyRequirements{
+	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
 	})
