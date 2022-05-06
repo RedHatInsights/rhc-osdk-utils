@@ -31,7 +31,7 @@ type ResourceMetadata struct {
 	Name            string
 	UID             string
 	ResourceVersion string
-	OwnerReferences []string
+	OwnerUIDs       []string
 }
 
 //Represents the status we pull off the unstructured resource
@@ -61,7 +61,7 @@ func (r *Resource) AddReadyRequirements(requirements ResourceConditionReadyRequi
 
 //Returns true of the resource is owned by the given guid
 func (r *Resource) IsOwnedBy(ownerUID string) bool {
-	for _, ownerRef := range r.Metadata.OwnerReferences {
+	for _, ownerRef := range r.Metadata.OwnerUIDs {
 		if ownerRef == ownerUID {
 			return true
 		}
@@ -117,7 +117,7 @@ func (r *Resource) parseMetadata() {
 		Name:            rawMetadata["name"].(string),
 		UID:             rawMetadata["uid"].(string),
 		ResourceVersion: rawMetadata["resourceVersion"].(string),
-		OwnerReferences: ownerReferences,
+		OwnerUIDs:       ownerReferences,
 	}
 }
 
@@ -149,6 +149,7 @@ func (r *Resource) parseStatusConditions() {
 
 	//If the source object doesn't have conditions we can just bail
 	//They don't need to be there, we'll just get not ready without them which is fine
+	//Note: This will happen frequently if a resource hasn't yet been reconciled
 	if !r.interfaceMapHasKey(status, "conditions") {
 		return
 	}
@@ -199,34 +200,19 @@ func (r *ResourceList) CountReady() int {
 	return count
 }
 
-//Get a count of the broken resources
-func (r *ResourceList) CountBroken() int {
-	count := 0
-	for _, resource := range r.Resources {
-		if !resource.IsReady() {
-			count += 1
-		}
-	}
-	return count
+type ResourceStatusBuckets struct {
+	Ready  []Resource
+	Broken []Resource
 }
 
-//Get a list of ready resources
-func (r *ResourceList) GetReadyResources() []Resource {
-	retVal := []Resource{}
+//Get a lists of resources bucketed by status
+func (r *ResourceList) GetResourceStatusBuckets() ResourceStatusBuckets {
+	retVal := ResourceStatusBuckets{}
 	for _, resource := range r.Resources {
 		if resource.IsReady() {
-			retVal = append(retVal, resource)
-		}
-	}
-	return retVal
-}
-
-//Get a list of broken resources
-func (r *ResourceList) GetBrokenResources() []Resource {
-	retVal := []Resource{}
-	for _, resource := range r.Resources {
-		if !resource.IsReady() {
-			retVal = append(retVal, resource)
+			retVal.Ready = append(retVal.Ready, resource)
+		} else {
+			retVal.Broken = append(retVal.Broken, resource)
 		}
 	}
 	return retVal
@@ -355,7 +341,7 @@ func (r *ResourceCounter) countInNamespace(resources ResourceList) {
 
 	r.CountManaged += resources.Count()
 	r.CountReady += resources.CountReady()
-	r.generateBrokenLog(resources.GetBrokenResources())
+	r.generateBrokenLog(resources.GetResourceStatusBuckets().Broken)
 }
 
 func (r *ResourceCounter) GetResourceList(pClient client.Client, ctx context.Context, namespace string) ResourceList {

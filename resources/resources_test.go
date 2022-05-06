@@ -170,7 +170,7 @@ func TestReadyResourceList(t *testing.T) {
 
 	assert.Equal(t, rl.Count(), len(uList.Items))
 	assert.Equal(t, rl.Count(), rl.CountReady())
-	assert.Equal(t, rl.CountBroken(), 0)
+	assert.Equal(t, rl.Count()-rl.CountReady(), 0)
 }
 
 func TestMixedResourceList(t *testing.T) {
@@ -193,7 +193,7 @@ func TestMixedResourceList(t *testing.T) {
 
 	assert.Equal(t, rl.Count(), len(uList.Items))
 	assert.Equal(t, rl.CountReady(), len(uList.Items)/2)
-	assert.Equal(t, rl.CountBroken(), len(uList.Items)/2)
+	assert.Equal(t, rl.Count()-rl.CountReady(), len(uList.Items)/2)
 }
 
 func TestReadyResourceListNoReadyRequirements(t *testing.T) {
@@ -213,7 +213,7 @@ func TestReadyResourceListNoReadyRequirements(t *testing.T) {
 
 	assert.Equal(t, rl.Count(), len(uList.Items))
 	assert.Equal(t, rl.CountReady(), 0)
-	assert.Equal(t, rl.CountBroken(), rl.Count())
+	assert.Equal(t, rl.Count()-rl.CountReady(), rl.Count())
 }
 
 //We can't fully test this object
