@@ -47,16 +47,16 @@ type ResourceStatus struct {
 //type that can represent any kind of resource and perform common
 //actions
 type Resource struct {
-	Source         unstructured.Unstructured
-	Status         ResourceStatus
-	Metadata       ResourceMetadata
-	Conditions     []map[string]string
-	ConditionClass ResourceConditionReadyRequirements
+	Source            unstructured.Unstructured
+	Status            ResourceStatus
+	Metadata          ResourceMetadata
+	Conditions        []map[string]string
+	ReadyRequirements []ResourceConditionReadyRequirements
 }
 
-//Sets the resource ready requirements
-func (r *Resource) SetReadyRequirements(class ResourceConditionReadyRequirements) {
-	r.ConditionClass = class
+//Adds a resource ready requirement
+func (r *Resource) AddReadyRequirements(requirements ResourceConditionReadyRequirements) {
+	r.ReadyRequirements = append(r.ReadyRequirements, requirements)
 }
 
 //Returns true of the resource is owned by the given guid
@@ -82,12 +82,14 @@ func (r *Resource) IsReady() bool {
 	return r.readyConditionFound() && r.generationNumbersMatch()
 }
 
-//Returns true of the ready conditions are found
+//Returns true if the ready conditions are found
 //We only care to find one matching condition. Not all need to match to be Ready
 func (r *Resource) readyConditionFound() bool {
 	for _, condition := range r.Conditions {
-		if condition["type"] == r.ConditionClass.Type && condition["status"] == r.ConditionClass.Status {
-			return true
+		for _, requirement := range r.ReadyRequirements {
+			if condition["type"] == requirement.Type && condition["status"] == requirement.Status {
+				return true
+			}
 		}
 	}
 	return false
@@ -282,11 +284,11 @@ func (r *ResourceList) parseSource() {
 	}
 }
 
-//Set the resource requirements for all of the resources in the list
-func (r *ResourceList) SetReadyRequirements(reqs ResourceConditionReadyRequirements) {
+//Add resource ready requirements for all of the resources in the list
+func (r *ResourceList) AddReadyRequirements(reqs ResourceConditionReadyRequirements) {
 	var updatedResources = []Resource{}
 	for _, resource := range r.Resources {
-		resource.SetReadyRequirements(reqs)
+		resource.AddReadyRequirements(reqs)
 		updatedResources = append(updatedResources, resource)
 	}
 	r.Resources = updatedResources
@@ -347,7 +349,7 @@ func (r *ResourceCounter) Count(ctx context.Context, pClient client.Client) Reso
 
 //Counts up the managed resources in a given namespace
 func (r *ResourceCounter) countInNamespace(resources ResourceList) {
-	resources.SetReadyRequirements(r.ReadyRequirements)
+	resources.AddReadyRequirements(r.ReadyRequirements)
 
 	resources = resources.FilterByOwnerUID(r.Query.OwnerGUID)
 
