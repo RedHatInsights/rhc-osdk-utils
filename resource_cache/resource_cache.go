@@ -22,8 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -190,7 +188,7 @@ func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheCon
 	var log logr.Logger
 
 	if logCheck == nil {
-		log = ctrllog.NullLogger{}
+		log = logr.Discard()
 	} else {
 		log = (*ctx.Value(config.logKey).(*logr.Logger)).WithName("resource-cache-client")
 	}
