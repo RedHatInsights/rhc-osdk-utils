@@ -100,24 +100,24 @@ func (r *Resource) generationNumbersMatch() bool {
 	return r.Metadata.Generation <= r.Status.ObservedGeneration
 }
 
-//Parses the unstructured source metadata into this Resource object's metadata map
+//Gets the metadata from the source unstructured.Unstructured object
 func (r *Resource) parseMetadata() {
-	rawMetadata := r.Source.Object["metadata"].(map[string]interface{})
+	r.Source.GetGeneration()
+	r.Source.GetNamespace()
 
-	rawOwnerReferences := rawMetadata["ownerReferences"].([]interface{})
-	var ownerReferences []string
+	var ownerUIDs []string
 
-	for _, ownerReference := range rawOwnerReferences {
-		ownerReferences = append(ownerReferences, ownerReference.(map[string]interface{})["uid"].(string))
+	for _, ownerReference := range r.Source.GetOwnerReferences() {
+		ownerUIDs = append(ownerUIDs, string(ownerReference.UID))
 	}
 
 	r.Metadata = ResourceMetadata{
-		Generation:      rawMetadata["generation"].(int64),
-		Namespace:       rawMetadata["namespace"].(string),
-		Name:            rawMetadata["name"].(string),
-		UID:             rawMetadata["uid"].(string),
-		ResourceVersion: rawMetadata["resourceVersion"].(string),
-		OwnerUIDs:       ownerReferences,
+		Generation:      r.Source.GetGeneration(),
+		Namespace:       r.Source.GetNamespace(),
+		Name:            r.Source.GetName(),
+		UID:             string(r.Source.GetUID()),
+		ResourceVersion: r.Source.GetResourceVersion(),
+		OwnerUIDs:       ownerUIDs,
 	}
 }
 
