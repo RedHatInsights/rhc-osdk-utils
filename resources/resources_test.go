@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -138,9 +138,11 @@ func TestFilterResourceListByGUID(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
-		Type:   "Available",
-		Status: "Ready",
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
 	})
 
 	filteredList := rl.FilterByOwnerUID(GUID)
@@ -163,9 +165,11 @@ func TestReadyResourceList(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
-		Type:   "Available",
-		Status: "Ready",
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
 	})
 
 	assert.Equal(t, rl.Count(), len(uList.Items))
@@ -186,9 +190,11 @@ func TestMixedResourceList(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
-		Type:   "Available",
-		Status: "Ready",
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
 	})
 
 	assert.Equal(t, rl.Count(), len(uList.Items))
@@ -220,19 +226,18 @@ func TestReadyResourceListNoReadyRequirements(t *testing.T) {
 //Its primary public method requires talking to k8s - that's a
 //huge part of its value. However, we can test everything the method does
 func TestResourceCounterMixedMultipleNamespaces(t *testing.T) {
+
 	rc := ResourceCounter{
 		Query: ResourceCounterQuery{
 			Namespaces: []string{"some-namespace", "some-other-namespace"},
 			OwnerGUID:  GUID,
-			GVK: schema.GroupVersionKind{
-				Group:   "apps",
-				Kind:    "Deployment",
-				Version: "v1",
-			},
+			OfType:     &apps.Deployment{},
 		},
-		ReadyRequirements: ResourceConditionReadyRequirements{
-			Type:   "Available",
-			Status: "Ready",
+		ReadyRequirements: []ResourceConditionReadyRequirements{
+			{
+				Type:   "Available",
+				Status: "Ready",
+			},
 		},
 	}
 
@@ -248,9 +253,11 @@ func TestResourceCounterMixedMultipleNamespaces(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
-		Type:   "Available",
-		Status: "Ready",
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
 	})
 
 	rc.countInNamespace(rl)
@@ -265,15 +272,13 @@ func TestResourceCounterMixedSingleNamespaces(t *testing.T) {
 		Query: ResourceCounterQuery{
 			Namespaces: []string{"some-namespace"},
 			OwnerGUID:  GUID,
-			GVK: schema.GroupVersionKind{
-				Group:   "apps",
-				Kind:    "Deployment",
-				Version: "v1",
-			},
+			OfType:     &apps.Deployment{},
 		},
-		ReadyRequirements: ResourceConditionReadyRequirements{
-			Type:   "Available",
-			Status: "Ready",
+		ReadyRequirements: []ResourceConditionReadyRequirements{
+			{
+				Type:   "Available",
+				Status: "Ready",
+			},
 		},
 	}
 
@@ -289,9 +294,11 @@ func TestResourceCounterMixedSingleNamespaces(t *testing.T) {
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
 
-	rl.AddReadyRequirements(ResourceConditionReadyRequirements{
-		Type:   "Available",
-		Status: "Ready",
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
 	})
 
 	rc.countInNamespace(rl)

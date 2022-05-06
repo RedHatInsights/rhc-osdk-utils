@@ -271,10 +271,12 @@ func (r *ResourceList) parseSource() {
 }
 
 //Add resource ready requirements for all of the resources in the list
-func (r *ResourceList) AddReadyRequirements(reqs ResourceConditionReadyRequirements) {
+func (r *ResourceList) AddReadyRequirementsFromSlice(reqsList []ResourceConditionReadyRequirements) {
 	var updatedResources = []Resource{}
 	for _, resource := range r.Resources {
-		resource.AddReadyRequirements(reqs)
+		for _, reqs := range reqsList {
+			resource.AddReadyRequirements(reqs)
+		}
 		updatedResources = append(updatedResources, resource)
 	}
 	r.Resources = updatedResources
@@ -288,27 +290,12 @@ type ResourceCounterResults struct {
 }
 
 //Represents a resource query for a count
-//We count resources of a given GVK, in a given set of namespaces, owned by a given guid
+//We count resources of a given GVK (which derive from OfType ), in a given set of namespaces, owned by a given guid
 type ResourceCounterQuery struct {
-	GVK        schema.GroupVersionKind
+	OfType     client.Object
 	Namespaces []string
 	OwnerGUID  string
 }
-
-/* GVK Examples
-Forgive this weird comment but I find myself needing to look these up a lot
-Chances are if you are working on this code you'll need some examples :)
-schema.GroupVersionKind{
-	Group:   "kafka.strimzi.io",
-	Kind:    "Kafka",
-	Version: "v1beta2",
-}
-GVK: schema.GroupVersionKind{
-	Group:   "apps",
-	Kind:    "Deployment",
-	Version: "v1",
-}
-*/
 
 //Provides a simple API for getting common figures on Resources and ResourceLists
 //The Count method returns a ResourceCounterResults instance
@@ -317,7 +304,7 @@ type ResourceCounter struct {
 	CountReady        int
 	BrokenLog         []string
 	Query             ResourceCounterQuery
-	ReadyRequirements ResourceConditionReadyRequirements
+	ReadyRequirements []ResourceConditionReadyRequirements
 }
 
 //Counts the resources
@@ -335,7 +322,7 @@ func (r *ResourceCounter) Count(ctx context.Context, pClient client.Client) Reso
 
 //Counts up the managed resources in a given namespace
 func (r *ResourceCounter) countInNamespace(resources ResourceList) {
-	resources.AddReadyRequirements(r.ReadyRequirements)
+	resources.AddReadyRequirementsFromSlice(r.ReadyRequirements)
 
 	resources = resources.FilterByOwnerUID(r.Query.OwnerGUID)
 
@@ -346,7 +333,8 @@ func (r *ResourceCounter) countInNamespace(resources ResourceList) {
 
 func (r *ResourceCounter) GetResourceList(pClient client.Client, ctx context.Context, namespace string) ResourceList {
 	resources := ResourceList{}
-	resources.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
+	gvk := r.Query.OfType.GetObjectKind().GroupVersionKind()
+	resources.GetByGVKAndNamespace(pClient, ctx, namespace, gvk)
 	return resources
 }
 
