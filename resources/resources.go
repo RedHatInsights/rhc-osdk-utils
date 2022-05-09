@@ -40,6 +40,17 @@ type ResourceStatus struct {
 	ObservedGeneration int64
 }
 
+//Make a resource from an unstructured, parse it, and return it
+func MakeResource(source unstructured.Unstructured) Resource {
+	res := Resource{}
+
+	res.parseMetadata(source)
+	res.parseStatusConditions(source)
+	res.parseStatus(source)
+
+	return res
+}
+
 //Represents a k8s resource in a type-neutral way
 //We used to have lots of repeated code because we needed to perform
 //the same operations on different resources, which are represented by
@@ -47,7 +58,6 @@ type ResourceStatus struct {
 //type that can represent any kind of resource and perform common
 //actions
 type Resource struct {
-	Source            unstructured.Unstructured
 	Status            ResourceStatus
 	Metadata          ResourceMetadata
 	Conditions        []map[string]string
@@ -67,14 +77,6 @@ func (r *Resource) IsOwnedBy(ownerUID string) bool {
 		}
 	}
 	return false
-}
-
-//Parses a resource unstructured object to populate this Resource object
-func (r *Resource) Parse(uObject unstructured.Unstructured) {
-	r.Source = uObject
-	r.parseMetadata()
-	r.parseStatusConditions()
-	r.parseStatus()
 }
 
 //Get the ready status
@@ -101,22 +103,22 @@ func (r *Resource) generationNumbersMatch() bool {
 }
 
 //Gets the metadata from the source unstructured.Unstructured object
-func (r *Resource) parseMetadata() {
-	r.Source.GetGeneration()
-	r.Source.GetNamespace()
+func (r *Resource) parseMetadata(source unstructured.Unstructured) {
+	source.GetGeneration()
+	source.GetNamespace()
 
 	var ownerUIDs []string
 
-	for _, ownerReference := range r.Source.GetOwnerReferences() {
+	for _, ownerReference := range source.GetOwnerReferences() {
 		ownerUIDs = append(ownerUIDs, string(ownerReference.UID))
 	}
 
 	r.Metadata = ResourceMetadata{
-		Generation:      r.Source.GetGeneration(),
-		Namespace:       r.Source.GetNamespace(),
-		Name:            r.Source.GetName(),
-		UID:             string(r.Source.GetUID()),
-		ResourceVersion: r.Source.GetResourceVersion(),
+		Generation:      source.GetGeneration(),
+		Namespace:       source.GetNamespace(),
+		Name:            source.GetName(),
+		UID:             string(source.GetUID()),
+		ResourceVersion: source.GetResourceVersion(),
 		OwnerUIDs:       ownerUIDs,
 	}
 }
@@ -127,8 +129,8 @@ func (r *Resource) interfaceMapHasKey(inMap map[string]interface{}, key string) 
 }
 
 //Parses a subset of the unstructures source status
-func (r *Resource) parseStatus() {
-	statusSource := r.Source.Object["status"].(map[string]interface{})
+func (r *Resource) parseStatus(source unstructured.Unstructured) {
+	statusSource := source.Object["status"].(map[string]interface{})
 
 	//observed
 	var observedGen int64
@@ -144,8 +146,8 @@ func (r *Resource) parseStatus() {
 }
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
-func (r *Resource) parseStatusConditions() {
-	status := r.Source.Object["status"].(map[string]interface{})
+func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
+	status := source.Object["status"].(map[string]interface{})
 
 	//If the source object doesn't have conditions we can just bail
 	//They don't need to be there, we'll just get not ready without them which is fine
@@ -264,9 +266,7 @@ func (r *ResourceList) GetByGVKAndNamespace(pClient client.Client, ctx context.C
 //Parses the source unstructured.UnstructuredList into an array of Resources
 func (r *ResourceList) parseSource() {
 	for _, unstructured := range r.source.Items {
-		resource := Resource{}
-		resource.Parse(unstructured)
-		r.Resources = append(r.Resources, resource)
+		r.Resources = append(r.Resources, MakeResource(unstructured))
 	}
 }
 
