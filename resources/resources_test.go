@@ -310,8 +310,8 @@ func TestResourceCounterMixedSingleNamespaces(t *testing.T) {
 
 func TestReadyDeployment(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentReady)
-	r := Resource{}
-	r.Parse(unstruct)
+	r := MakeResource(unstruct)
+
 	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
 		Status: "Ready",
@@ -323,8 +323,7 @@ func TestReadyDeployment(t *testing.T) {
 func TestReadyDeploymentWithWrongReadyRequirements(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentReady)
 
-	r := Resource{}
-	r.Parse(unstruct)
+	r := MakeResource(unstruct)
 
 	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
@@ -337,8 +336,7 @@ func TestReadyDeploymentWithWrongReadyRequirements(t *testing.T) {
 func TestBadConditionsDeployment(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentBadConditions)
 
-	r := Resource{}
-	r.Parse(unstruct)
+	r := MakeResource(unstruct)
 
 	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
@@ -351,8 +349,7 @@ func TestBadConditionsDeployment(t *testing.T) {
 func TestNoConditionsDeployment(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentNoConditions)
 
-	r := Resource{}
-	r.Parse(unstruct)
+	r := MakeResource(unstruct)
 
 	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
@@ -365,8 +362,7 @@ func TestNoConditionsDeployment(t *testing.T) {
 func TestBadGenerationDeployment(t *testing.T) {
 	unstruct := ConvertJSONToUnstructured(JSONDeploymentBadGeneration)
 
-	r := Resource{}
-	r.Parse(unstruct)
+	r := MakeResource(unstruct)
 
 	r.AddReadyRequirements(ResourceConditionReadyRequirements{
 		Type:   "Available",
