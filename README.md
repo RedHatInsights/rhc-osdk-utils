@@ -22,7 +22,7 @@ guid := "2we34-32ed3-33d33-23rd3"
 counter := resources.ResourceCounter{
     Query: resources.ResourceCounterQuery{
         Namespaces: namespaces,
-        OfType:     &apps.Deployment{},
+        GVK:     CommonGVKs.Deployment,
         OwnerGUID: guid,
     },
     ReadyRequirements: []resources.ResourceConditionReadyRequirements{
@@ -53,11 +53,11 @@ deployments := ResourceList{}
 deployments.GetByGVKAndNamespace(client, context, namespace, gvk)
 ```
 
-The code above would populate the resource list with resources of a given GVK for a given namespace. Note that in real life you'd likely infer the GVK from something that implements `client.Object`:
+The code above would populate the resource list with resources of a given GVK for a given namespace. We provide a struct with common GVKs for things we often status check:
 
 ```go
-	ofType := &apps.Deployemnt{}
-	resources.GetByGVKAndNamespace(pClient, ctx, namespace, ofType.GetObjectKind().GroupVersionKind())
+	gvk := resources.CommonGVKs.Deployment
+	resources.GetByGVKAndNamespace(pClient, ctx, namespace, gvk)
 ```
 
 A number of useful operations could then be performed on the list:

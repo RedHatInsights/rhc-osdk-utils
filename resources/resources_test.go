@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -231,7 +230,7 @@ func TestResourceCounterMixedMultipleNamespaces(t *testing.T) {
 		Query: ResourceCounterQuery{
 			Namespaces: []string{"some-namespace", "some-other-namespace"},
 			OwnerGUID:  GUID,
-			OfType:     &apps.Deployment{},
+			GVK:        CommonGVKs.Deployment,
 		},
 		ReadyRequirements: []ResourceConditionReadyRequirements{
 			{
@@ -272,7 +271,7 @@ func TestResourceCounterMixedSingleNamespaces(t *testing.T) {
 		Query: ResourceCounterQuery{
 			Namespaces: []string{"some-namespace"},
 			OwnerGUID:  GUID,
-			OfType:     &apps.Deployment{},
+			GVK:        CommonGVKs.Deployment,
 		},
 		ReadyRequirements: []ResourceConditionReadyRequirements{
 			{
