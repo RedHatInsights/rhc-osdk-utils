@@ -11,6 +11,36 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type GVKs struct {
+	Deployment   schema.GroupVersionKind
+	Kafka        schema.GroupVersionKind
+	KafkaTopic   schema.GroupVersionKind
+	KafkaConnect schema.GroupVersionKind
+}
+
+var CommonGVKs = GVKs{
+	Deployment: schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "Deployment",
+	},
+	Kafka: schema.GroupVersionKind{
+		Group:   "kafka.strimzi.io",
+		Version: "v1beta2",
+		Kind:    "Kafka",
+	},
+	KafkaConnect: schema.GroupVersionKind{
+		Group:   "kafka.strimzi.io",
+		Version: "v1beta2",
+		Kind:    "KafkaConnect",
+	},
+	KafkaTopic: schema.GroupVersionKind{
+		Group:   "kafka.strimzi.io",
+		Version: "v1beta2",
+		Kind:    "KafkaTopic",
+	},
+}
+
 //An operator is interested in how many of a resource it manages and how many are ready
 type ResourceFigures struct {
 	Total int32
@@ -292,7 +322,7 @@ type ResourceCounterResults struct {
 //Represents a resource query for a count
 //We count resources of a given GVK (which derive from OfType ), in a given set of namespaces, owned by a given guid
 type ResourceCounterQuery struct {
-	OfType     client.Object
+	GVK        schema.GroupVersionKind
 	Namespaces []string
 	OwnerGUID  string
 }
@@ -333,8 +363,7 @@ func (r *ResourceCounter) countInNamespace(resources ResourceList) {
 
 func (r *ResourceCounter) GetResourceList(pClient client.Client, ctx context.Context, namespace string) ResourceList {
 	resources := ResourceList{}
-	gvk := r.Query.OfType.GetObjectKind().GroupVersionKind()
-	resources.GetByGVKAndNamespace(pClient, ctx, namespace, gvk)
+	resources.GetByGVKAndNamespace(pClient, ctx, namespace, r.Query.GVK)
 	return resources
 }
 
