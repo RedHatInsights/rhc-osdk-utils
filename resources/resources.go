@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -79,6 +81,20 @@ func MakeResource(source unstructured.Unstructured) Resource {
 	res.parseStatus(source)
 
 	return res
+}
+
+func MakeQuery(typeSpecimen client.Object, scheme runtime.Scheme, namespaces []string, uid types.UID) (ResourceCounterQuery, error) {
+	gvk, _, err := scheme.ObjectKinds(typeSpecimen)
+	if err != nil {
+		return ResourceCounterQuery{}, err
+	}
+	return ResourceCounterQuery{
+		Namespaces: namespaces,
+		//This creeps me out and I do not like it
+		//Assuming the first entry is right feels very fly by night
+		GVK:       gvk[0],
+		OwnerGUID: string(uid),
+	}, nil
 }
 
 //Represents a k8s resource in a type-neutral way
