@@ -39,6 +39,21 @@ Somethings worth noting in the above example:
 * The results will be a `resources.ResourceCounterResults` struct which shows the number of maanaged and ready resources and a report on the broken ones.
 * `ReadyRequirements` is set to a `resources.ResourceConditionReadyRequirements`. This type defines the criteria used to decide that a resource is ready. This is done by looking for a status condition on the resource that matches the provided type and status. This unfortunately differs from resource to resource; for example, a deployment wants type `"Available"` and status `"True"` while Kafka wants type `"Ready"` and status `"True"`
 
+### MakeQuery
+You may want to write a query for an object you don't know the GVK for and that we don't have in `CommonGVKs`. For that you can use the `MakeQuery` function which will accept a `runtime.Scheme` along with other query requirements to build a query. In the example below we pass `MakeQuery` a type specimen - in this case an `apps.Deployment{}` along with a `runtime.Scheme`, namespace string list and a GUID. The resulting query can be used by `ResourceCounter`.
+
+```go
+query, _ := resources.MakeQuery(&apps.Deployment{}, *scheme, namespaces, o.GetUID())
+
+counter := resources.ResourceCounter{
+    Query: query,
+    ReadyRequirements: []resources.ResourceConditionReadyRequirements{{
+        Type:   "Available",
+        Status: "True",
+    }},
+}
+```
+
 ### ResourceList
 ResourceCounter abstracts away ResourceList and provides an API for a bunch of common operations. If you want to perform your own logic with a list of resources you'd want to use ResourceList:
 
