@@ -54,6 +54,22 @@ counter := resources.ResourceCounter{
 }
 ```
 
+### MakeResourceCounterForType
+A common pattern is what we saw above: make a query for a type and then generate a ResourceCounter for it. The `MakeResourceCounterForType` method will collapse that into one step for you:
+
+```go
+    counter := resources.MakeResourceCounterForType(
+        &apps.Deployment{}, 
+        *scheme, 
+        namespaces, 
+        o.GetUID(),
+        []resources.ResourceConditionReadyRequirements{{
+            Type:   "Available",
+            Status: "True",
+         }}
+    )
+```
+
 ### ResourceList
 ResourceCounter abstracts away ResourceList and provides an API for a bunch of common operations. If you want to perform your own logic with a list of resources you'd want to use ResourceList:
 
