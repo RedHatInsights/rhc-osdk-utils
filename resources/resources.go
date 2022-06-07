@@ -83,6 +83,21 @@ func MakeResource(source unstructured.Unstructured) Resource {
 	return res
 }
 
+//Encapsulates the logic for making a query and returning a resource counter in one method call
+func MakeResourceCounterForType(typeSpecimen client.Object, scheme runtime.Scheme, namespaces []string, uid types.UID, readyRequirements []ResourceConditionReadyRequirements) (ResourceCounter, error) {
+	query, err := MakeQuery(typeSpecimen, scheme, namespaces, uid)
+	if err != nil {
+		return ResourceCounter{}, err
+	}
+
+	counter := ResourceCounter{
+		Query:             query,
+		ReadyRequirements: readyRequirements,
+	}
+
+	return counter, nil
+}
+
 func MakeQuery(typeSpecimen client.Object, scheme runtime.Scheme, namespaces []string, uid types.UID) (ResourceCounterQuery, error) {
 	gvk, _, err := scheme.ObjectKinds(typeSpecimen)
 	if err != nil {
