@@ -7,7 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -108,6 +111,30 @@ var JSONDeploymentBadGeneration = `
 	}
 }
 `
+
+func TestMakeQueryUnregisteredType(t *testing.T) {
+	obj := v1.Deployment{}
+	scheme := runtime.NewScheme()
+	namespaces := []string{"test"}
+	var uid types.UID = "1234"
+
+	_, err := MakeQuery(&obj, *scheme, namespaces, uid)
+
+	assert.Error(t, err)
+}
+
+func TestMakeQueryRegisteredType(t *testing.T) {
+	obj := v1.Deployment{}
+	scheme := runtime.NewScheme()
+	scheme.AddKnownTypes(CommonGVKs.Deployment.GroupVersion(), &obj)
+	namespaces := []string{"test"}
+	var uid types.UID = "1234"
+
+	query, err := MakeQuery(&obj, *scheme, namespaces, uid)
+
+	assert.Nil(t, err)
+	assert.Equal(t, query.GVK.Kind, "Deployment")
+}
 
 //A lot of our methods care about unstructured.Unstructured, so we need to be able to produce those
 //in various states for tests. Thankfully we can unmarshall them from JSON!
