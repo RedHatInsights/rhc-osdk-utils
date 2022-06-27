@@ -224,7 +224,8 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 	//Iterate over the conditions
 	for _, condition := range conditions {
 		//Get the condition as a map
-		conditionMap := condition.(map[string]interface{})
+		//conditionMap := condition.(map[string]interface{})
+		conditionMap, _ := safe_asserts.ToMap(condition)
 		//Get the condition parts
 		condStatus, _ := safe_asserts.GetString(conditionMap, "status")
 		condType, _ := safe_asserts.GetString(conditionMap, "type")

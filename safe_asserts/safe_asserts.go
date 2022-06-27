@@ -20,3 +20,12 @@ func GetInterfaceList(sourceInterface map[string]interface{}, key string) ([]int
 	}
 	return outList, assertionSuccess
 }
+
+func ToMap(sourceInterface interface{}) (map[string]interface{}, bool) {
+	outMap := map[string]interface{}{}
+	assertedMap, assertionSuccess := sourceInterface.(map[string]interface{})
+	if assertionSuccess {
+		outMap = assertedMap
+	}
+	return outMap, assertionSuccess
+}
