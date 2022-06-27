@@ -209,11 +209,12 @@ func (r *Resource) parseStatus(source unstructured.Unstructured) {
 //We perform many type asserts in this code as we pull values from the unstructured
 //objects. We need to handle these safely so as to avoid panics
 func safeStringTypeAssert(sourceMap map[string]interface{}, key string) (string, bool) {
+	outString := ""
 	assertedString, assertionSuccess := sourceMap[key].(string)
 	if assertionSuccess {
-		return assertedString, assertionSuccess
+		outString = assertedString
 	}
-	return "", false
+	return outString, assertionSuccess
 }
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
@@ -242,6 +243,8 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 			"status": condStatus,
 			"type":   condType,
 		}
+		//Reason is different from its siblings because it is valid for it to be omitted
+		//So we pop it on the output conditionally
 		if reasonNotNil {
 			outputConditionMap["reason"] = condReason
 		}
