@@ -137,10 +137,168 @@ var JSONDeploymentNoReason = `
 }
 `
 
+var JSONDeploymentConditionNoStatus = `
+{
+	"apiVersion": "apps/v1",
+	"kind": "Deployment",
+	"metadata": {
+		"generation": 4,
+		"namespace": "some-other-namespace",
+		"name": "some-resource",
+		"uid": "1212-1212-1212-1212",
+		"resourceVersion": "1",
+		"ownerReferences" : [
+			{"uid": "` + GUID + `"},
+			{"uid": "2323-2323-2323-2323"}
+		]
+	},
+	"status": {
+		"observedGeneration": 1,
+		"conditions": [
+			{"jomo": "Ready", "type": "Available"},
+			{"jomo": "Yeah", "type": "Happy", "reason": "But Alpha Games better captures that hectic early 00's London indie rock sound."}
+		]
+	}
+}
+`
+
+var JSONDeploymentConditionNoType = `
+{
+	"apiVersion": "apps/v1",
+	"kind": "Deployment",
+	"metadata": {
+		"generation": 4,
+		"namespace": "some-other-namespace",
+		"name": "some-resource",
+		"uid": "1212-1212-1212-1212",
+		"resourceVersion": "1",
+		"ownerReferences" : [
+			{"uid": "` + GUID + `"},
+			{"uid": "2323-2323-2323-2323"}
+		]
+	},
+	"status": {
+		"observedGeneration": 1,
+		"conditions": [
+			{"status": "Ready", "fromo": "Available"},
+			{"status": "Yeah", "fromo": "Happy", "reason": "But Alpha Games better captures that hectic early 00's London indie rock sound."}
+		]
+	}
+}
+`
+
+var JSONDeploymentNoStatus = `
+{
+	"apiVersion": "apps/v1",
+	"kind": "Deployment",
+	"metadata": {
+		"generation": 4,
+		"namespace": "some-other-namespace",
+		"name": "some-resource",
+		"uid": "1212-1212-1212-1212",
+		"resourceVersion": "1",
+		"ownerReferences" : [
+			{"uid": "` + GUID + `"},
+			{"uid": "2323-2323-2323-2323"}
+		]
+	},
+}
+`
+
+var JSONDeploymentNoMetadata = `
+{
+	"apiVersion": "apps/v1",
+	"kind": "Deployment",
+	"status": {
+		"observedGeneration": 1,
+		"conditions": [
+			{"status": "Ready", "type": "Available"},
+			{"status": "Yeah", "type": "Happy", "reason": "But Alpha Games better captures that hectic early 00's London indie rock sound."}
+		]
+	}
+}
+`
+
+func TestDeploymentConditionWithNoStatus(t *testing.T) {
+	uList := unstructured.UnstructuredList{}
+
+	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentConditionNoStatus))
+
+	rl := ResourceList{}
+	rl.SetListAndParse(uList)
+
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
+	})
+
+	assert.Equal(t, rl.Count(), len(uList.Items))
+	assert.Equal(t, 0, rl.CountReady())
+}
+
+func TestDeploymentConditionWithNoType(t *testing.T) {
+	uList := unstructured.UnstructuredList{}
+
+	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentConditionNoType))
+
+	rl := ResourceList{}
+	rl.SetListAndParse(uList)
+
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
+	})
+
+	assert.Equal(t, rl.Count(), len(uList.Items))
+	assert.Equal(t, 0, rl.CountReady())
+}
+
+func TestDeploymentWithNoMetadata(t *testing.T) {
+	uList := unstructured.UnstructuredList{}
+
+	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentNoMetadata))
+
+	rl := ResourceList{}
+	rl.SetListAndParse(uList)
+
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
+	})
+
+	assert.Equal(t, rl.Count(), len(uList.Items))
+	assert.Equal(t, 1, rl.CountReady())
+}
+
 func TestConditionWithNoReason(t *testing.T) {
 	uList := unstructured.UnstructuredList{}
 
 	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentNoReason))
+
+	rl := ResourceList{}
+	rl.SetListAndParse(uList)
+
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
+	})
+
+	assert.Equal(t, rl.Count(), len(uList.Items))
+	assert.Equal(t, 0, rl.CountReady())
+}
+
+func TestDeploymentWithNoStatus(t *testing.T) {
+	uList := unstructured.UnstructuredList{}
+
+	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentNoStatus))
 
 	rl := ResourceList{}
 	rl.SetListAndParse(uList)
