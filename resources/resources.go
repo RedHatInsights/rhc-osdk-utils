@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/RedHatInsights/rhc-osdk-utils/safe_asserts"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -206,17 +208,6 @@ func (r *Resource) parseStatus(source unstructured.Unstructured) {
 	}
 }
 
-//We perform many type asserts in this code as we pull values from the unstructured
-//objects. We need to handle these safely so as to avoid panics
-func safeStringTypeAssert(sourceMap map[string]interface{}, key string) (string, bool) {
-	outString := ""
-	assertedString, assertionSuccess := sourceMap[key].(string)
-	if assertionSuccess {
-		outString = assertedString
-	}
-	return outString, assertionSuccess
-}
-
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
 func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 	status := source.Object["status"].(map[string]interface{})
@@ -229,15 +220,16 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 	}
 
 	//Get the conditions from the status object as an array
-	conditions := status["conditions"].([]interface{})
+	//conditions, _ := status["conditions"].([]interface{})
+	conditions, _ := safe_asserts.InterfaceFromMapToInterfaceList(status, "conditions")
 	//Iterate over the conditions
 	for _, condition := range conditions {
 		//Get the condition as a map
 		conditionMap := condition.(map[string]interface{})
 		//Get the condition parts
-		condStatus, _ := safeStringTypeAssert(conditionMap, "status")
-		condType, _ := safeStringTypeAssert(conditionMap, "type")
-		condReason, reasonNotNil := safeStringTypeAssert(conditionMap, "reason")
+		condStatus, _ := safe_asserts.InterfaceFromMapToString(conditionMap, "status")
+		condType, _ := safe_asserts.InterfaceFromMapToString(conditionMap, "type")
+		condReason, reasonNotNil := safe_asserts.InterfaceFromMapToString(conditionMap, "reason")
 		//Package the conditions up into an easy to use format
 		outputConditionMap := map[string]string{
 			"status": condStatus,
