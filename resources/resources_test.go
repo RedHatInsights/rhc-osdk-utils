@@ -112,6 +112,50 @@ var JSONDeploymentBadGeneration = `
 }
 `
 
+var JSONDeploymentNoReason = `
+{
+	"apiVersion": "apps/v1",
+	"kind": "Deployment",
+	"metadata": {
+		"generation": 4,
+		"namespace": "some-other-namespace",
+		"name": "some-resource",
+		"uid": "1212-1212-1212-1212",
+		"resourceVersion": "1",
+		"ownerReferences" : [
+			{"uid": "` + GUID + `"},
+			{"uid": "2323-2323-2323-2323"}
+		]
+	},
+	"status": {
+		"observedGeneration": 1,
+		"conditions": [
+			{"status": "Ready", "type": "Available"},
+			{"status": "Yeah", "type": "Happy", "reason": "But Alpha Games better captures that hectic early 00's London indie rock sound."}
+		]
+	}
+}
+`
+
+func TestConditionWithNoReason(t *testing.T) {
+	uList := unstructured.UnstructuredList{}
+
+	uList.Items = append(uList.Items, ConvertJSONToUnstructured(JSONDeploymentNoReason))
+
+	rl := ResourceList{}
+	rl.SetListAndParse(uList)
+
+	rl.AddReadyRequirementsFromSlice([]ResourceConditionReadyRequirements{
+		{
+			Type:   "Available",
+			Status: "Ready",
+		},
+	})
+
+	assert.Equal(t, rl.Count(), len(uList.Items))
+	assert.Equal(t, 0, rl.CountReady())
+}
+
 func TestMakeQueryUnregisteredType(t *testing.T) {
 	obj := v1.Deployment{}
 	scheme := runtime.NewScheme()

@@ -226,12 +226,14 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 		//Get the condition parts
 		condStatus := conditionMap["status"].(string)
 		condType := conditionMap["type"].(string)
-		condReason := conditionMap["reason"].(string)
+		condReason, reasonNotNil := conditionMap["reason"].(string)
 		//Package the conditions up into an easy to use format
 		outputConditionMap := map[string]string{
 			"status": condStatus,
 			"type":   condType,
-			"reason": condReason,
+		}
+		if reasonNotNil {
+			outputConditionMap["reason"] = condReason
 		}
 		//Add it to the output
 		r.Conditions = append(r.Conditions, outputConditionMap)
