@@ -451,7 +451,36 @@ func (o *ObjectCache) Status(resourceIdent ResourceIdent, object client.Object) 
 // update field on the internal resource. If the update is true, then the object will by applied, if
 // it is false, then the object will be created.
 func (o *ObjectCache) ApplyAll() error {
+	first := map[ResourceIdent]map[types.NamespacedName]*k8sResource{}
+	last := map[ResourceIdent]map[types.NamespacedName]*k8sResource{}
 	for k, v := range o.data {
+		gvk, err := utils.GetKindFromObj(o.scheme, k.GetType())
+		if err != nil {
+			return err
+		}
+		kind := gvk.Kind
+		if kind == "Deployment" || kind == "Job" || kind == "CronJob" {
+			last[k] = v
+		} else {
+			first[k] = v
+		}
+	}
+
+	err := o.applyResourceCache(first)
+	if err != nil {
+		return err
+	}
+
+	err = o.applyResourceCache(last)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *ObjectCache) applyResourceCache(cachedData map[ResourceIdent]map[types.NamespacedName]*k8sResource) error {
+	for k, v := range cachedData {
 		if k.GetWriteNow() {
 			continue
 		}

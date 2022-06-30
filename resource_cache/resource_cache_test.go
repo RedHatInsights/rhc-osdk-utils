@@ -3,11 +3,13 @@ package resource_cache
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
+	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +35,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apps.AddToScheme(scheme))
 }
 
 func Run(enableLeaderElection bool, config *rest.Config, signalHandler context.Context) {
@@ -270,5 +273,148 @@ func TestObjectCache(t *testing.T) {
 
 	if err := oCache.Update(TemplateIdent, service); err == nil {
 		t.Fatal("Did not error when should have: cache update")
+	}
+}
+
+type identAndObject struct {
+	obj   client.Object
+	ident ResourceIdent
+	nn    types.NamespacedName
+}
+
+func createRandomServices(n int) []identAndObject {
+	listOfObjects := []identAndObject{}
+
+	for i := 0; i <= n; i++ {
+		is := strconv.Itoa(i)
+		nn := types.NamespacedName{
+			Name:      "cr-service-" + is,
+			Namespace: "default",
+		}
+
+		ident := ResourceIdentSingle{
+			Provider: "TEST",
+			Purpose:  "MAINSERVICE" + is,
+			Type:     &core.Service{},
+		}
+
+		s := core.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nn.Name,
+				Namespace: nn.Namespace,
+			},
+			Spec: core.ServiceSpec{
+				Ports: []core.ServicePort{{
+					Name: "test",
+					Port: 9090,
+				}},
+			},
+		}
+		listOfObjects = append(listOfObjects, identAndObject{
+			obj:   &s,
+			ident: ident,
+			nn:    nn,
+		})
+	}
+	return listOfObjects
+}
+
+func TestObjectCacheOrdering(t *testing.T) {
+
+	config := CacheConfig{
+		scheme:        scheme,
+		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
+		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		logKey:        Key("bunk"),
+	}
+	var log logr.Logger
+
+	ctx := context.Background()
+	zapLog, _ := zap.NewDevelopment()
+
+	log = zapr.NewLogger(zapLog)
+
+	ctx = context.WithValue(ctx, Key("bunk"), &log)
+
+	oCache := NewObjectCache(ctx, k8sClient, &config)
+
+	nn := types.NamespacedName{
+		Name:      "test-ordering",
+		Namespace: "default",
+	}
+
+	a := apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"test": "test",
+				},
+			},
+			Template: core.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"test": "test",
+					},
+				},
+				Spec: core.PodSpec{
+					Containers: []core.Container{{
+						Name:  "test",
+						Image: "test",
+					}},
+				},
+			},
+		},
+	}
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &apps.Deployment{},
+	}
+
+	err := oCache.Create(SingleIdent, nn, &a)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ss := createRandomServices(250)
+	for _, s := range ss {
+		err = oCache.Create(s.ident, s.nn, s.obj)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
+
+	err = oCache.ApplyAll()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	deployment := apps.Deployment{}
+	if err = k8sClient.Get(context.Background(), nn, &deployment); err != nil {
+		t.Error(err)
+		return
+	}
+
+	time := deployment.ObjectMeta.CreationTimestamp.Time
+
+	clientServiceList := core.ServiceList{}
+	if err = k8sClient.List(context.Background(), &clientServiceList); err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, item := range clientServiceList.Items {
+		if item.ObjectMeta.CreationTimestamp.Time.After(time) {
+			t.Fatal("deployment was created before this resource, error!")
+		}
 	}
 }
