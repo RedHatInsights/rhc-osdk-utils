@@ -193,9 +193,9 @@ func (r *Resource) interfaceMapHasKey(inMap map[string]interface{}, key string) 
 
 //Parses a subset of the unstructures source status
 func (r *Resource) parseStatus(source unstructured.Unstructured) {
-	statusSource := safe_asserts.GetMap(source.Object, "status")
+	statusSource, _ := safe_asserts.GetMap(source.Object, "status")
 
-	observedGen := safe_asserts.GetInt64(statusSource, "observedGeneration", -1)
+	observedGen, _ := safe_asserts.GetInt64(statusSource, "observedGeneration", -1)
 
 	r.Status = ResourceStatus{
 		ObservedGeneration: observedGen,
@@ -204,7 +204,7 @@ func (r *Resource) parseStatus(source unstructured.Unstructured) {
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
 func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
-	status := safe_asserts.GetMap(source.Object, "status")
+	status, _ := safe_asserts.GetMap(source.Object, "status")
 
 	//If the source object doesn't have conditions we can just bail
 	//They don't need to be there, we'll just get not ready without them which is fine
@@ -214,14 +214,14 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 	}
 
 	//Get the conditions from the status object as an array
-	conditions := safe_asserts.GetInterfaceList(status, "conditions")
+	conditions, _ := safe_asserts.GetInterfaceList(status, "conditions")
 	//Iterate over the conditions
 	for _, condition := range conditions {
 		//Get the condition as a map
-		conditionMap := safe_asserts.ToMap(condition)
+		conditionMap, _ := safe_asserts.ToMap(condition)
 		//Get the condition parts
-		condStatus := safe_asserts.GetString(conditionMap, "status")
-		condType := safe_asserts.GetString(conditionMap, "type")
+		condStatus, _ := safe_asserts.GetString(conditionMap, "status")
+		condType, _ := safe_asserts.GetString(conditionMap, "type")
 		//Package the conditions up into an easy to use format
 		outputConditionMap := map[string]string{
 			"status": condStatus,
