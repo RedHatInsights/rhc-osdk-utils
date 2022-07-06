@@ -208,7 +208,7 @@ func (r *Resource) parseStatus(source unstructured.Unstructured) {
 
 //Parses the unstructured source metadata conditions into this Resource objects Conditions array of maps
 func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
-	status := source.Object["status"].(map[string]interface{})
+	status, _ := source.Object["status"].(map[string]interface{})
 
 	//If the source object doesn't have conditions we can just bail
 	//They don't need to be there, we'll just get not ready without them which is fine
@@ -218,20 +218,22 @@ func (r *Resource) parseStatusConditions(source unstructured.Unstructured) {
 	}
 
 	//Get the conditions from the status object as an array
-	conditions := status["conditions"].([]interface{})
+	conditions, _ := status["conditions"].([]interface{})
 	//Iterate over the conditions
 	for _, condition := range conditions {
 		//Get the condition as a map
-		conditionMap := condition.(map[string]interface{})
+		conditionMap, _ := condition.(map[string]interface{})
 		//Get the condition parts
-		condStatus := conditionMap["status"].(string)
-		condType := conditionMap["type"].(string)
-		condReason := conditionMap["reason"].(string)
+		condStatus, _ := conditionMap["status"].(string)
+		condType, _ := conditionMap["type"].(string)
+		condReason, isReason := conditionMap["reason"].(string)
 		//Package the conditions up into an easy to use format
 		outputConditionMap := map[string]string{
 			"status": condStatus,
 			"type":   condType,
-			"reason": condReason,
+		}
+		if isReason {
+			outputConditionMap["reason"] = condReason
 		}
 		//Add it to the output
 		r.Conditions = append(r.Conditions, outputConditionMap)
