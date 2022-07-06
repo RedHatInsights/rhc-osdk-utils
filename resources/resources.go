@@ -191,14 +191,14 @@ func (r *Resource) interfaceMapHasKey(inMap map[string]interface{}, key string) 
 
 //Parses a subset of the unstructures source status
 func (r *Resource) parseStatus(source unstructured.Unstructured) {
-	statusSource := source.Object["status"].(map[string]interface{})
+	statusSource, _ := source.Object["status"].(map[string]interface{})
 
 	//observed
 	var observedGen int64
 	observedGen = -1
 
 	if r.interfaceMapHasKey(statusSource, "observedGeneration") {
-		observedGen = statusSource["observedGeneration"].(int64)
+		observedGen, _ = statusSource["observedGeneration"].(int64)
 	}
 
 	r.Status = ResourceStatus{
