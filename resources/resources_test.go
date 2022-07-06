@@ -105,7 +105,7 @@ var JSONDeploymentBadGeneration = `
 	"status": {
 		"observedGeneration": 1,
 		"conditions": [
-			{"status": "Ready", "type": "Available", "reason": "I liked Hymns. It was different. And its gospel influences were thought provoking."},
+			{"status": "Ready", "type": "Available"},
 			{"status": "Yeah", "type": "Happy", "reason": "But Alpha Games better captures that hectic early 00's London indie rock sound."}
 		]
 	}
