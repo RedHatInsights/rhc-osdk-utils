@@ -48,3 +48,55 @@ func TestRandString(t *testing.T) {
 	b := RandString(12)
 	assert.NotEqual(t, a, b)
 }
+
+type TestAnnotator struct {
+	annotations map[string]string
+}
+
+func (a *TestAnnotator) SetAnnotations(annos map[string]string) {
+	a.annotations = annos
+}
+
+func (a *TestAnnotator) GetAnnotations() map[string]string {
+	return a.annotations
+}
+
+func TestAnnotatorSingle(t *testing.T) {
+	initAnnos := map[string]string{
+		"test": "colour me green",
+	}
+	b := &TestAnnotator{annotations: initAnnos}
+	UpdateAnnotations(b, map[string]string{
+		"test2": "ready steady restart",
+	})
+
+	expected := map[string]string{
+		"test":  "colour me green",
+		"test2": "ready steady restart",
+	}
+
+	assert.Equal(t, expected, b.GetAnnotations())
+}
+
+func TestAnnotatorMulti(t *testing.T) {
+	initAnnos := map[string]string{
+		"test": "colour me green",
+	}
+
+	b := &TestAnnotator{annotations: initAnnos}
+	UpdateAnnotations(b,
+		map[string]string{
+			"test2": "ready steady restart",
+		},
+		map[string]string{
+			"test3": "with a 1,2,3",
+		})
+
+	expected := map[string]string{
+		"test":  "colour me green",
+		"test2": "ready steady restart",
+		"test3": "with a 1,2,3",
+	}
+
+	assert.Equal(t, expected, b.GetAnnotations())
+}

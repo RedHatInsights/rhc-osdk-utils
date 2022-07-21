@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	core "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -22,10 +23,14 @@ import (
 )
 
 const rCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+const lCharSet = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
+
+// Log is a null logger instance.
+var Log logr.Logger = logr.Discard()
 
 // RandString generates a random string of length n
 func RandString(n int) string {
@@ -33,6 +38,17 @@ func RandString(n int) string {
 
 	for i := range b {
 		b[i] = rCharSet[rand.Intn(len(rCharSet))]
+	}
+
+	return string(b)
+}
+
+// RandStringLower generates a random string of length n
+func RandStringLower(n int) string {
+	b := make([]byte, n)
+
+	for i := range b {
+		b[i] = lCharSet[rand.Intn(len(lCharSet))]
 	}
 
 	return string(b)
@@ -290,19 +306,19 @@ func GetKindFromObj(scheme *runtime.Scheme, object runtime.Object) (schema.Group
 
 // CopySecret will return a *core.Secret that is copied from a source NamespaceName and intended to
 // be applied into a destination NamespacedName
-func CopySecret(ctx context.Context, client client.Client, srcSecretRef types.NamespacedName, dstSecretRef types.NamespacedName) (error, *core.Secret) {
+func CopySecret(ctx context.Context, client client.Client, srcSecretRef types.NamespacedName, dstSecretRef types.NamespacedName) (*core.Secret, error) {
 	nullRef := types.NamespacedName{}
 	if srcSecretRef == nullRef {
-		return fmt.Errorf("srcSecretRef is an empty NamespacedName"), nil
+		return nil, fmt.Errorf("srcSecretRef is an empty NamespacedName")
 	}
 	if dstSecretRef == nullRef {
-		return fmt.Errorf("dstSecretRef is an empty NamespacedName"), nil
+		return nil, fmt.Errorf("dstSecretRef is an empty NamespacedName")
 	}
 
 	srcSecret := &core.Secret{}
 
 	if err := client.Get(ctx, srcSecretRef, srcSecret); err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	newSecret := &core.Secret{}
@@ -312,7 +328,7 @@ func CopySecret(ctx context.Context, client client.Client, srcSecretRef types.Na
 	newSecret.SetName(dstSecretRef.Name)
 	newSecret.SetNamespace(dstSecretRef.Namespace)
 
-	return nil, newSecret
+	return newSecret, nil
 }
 
 // Int32Ptr returns a pointer to an int32 version of n
@@ -345,4 +361,24 @@ func FalsePtr() *bool {
 func StringPtr(str string) *string {
 	s := str
 	return &s
+}
+
+type Annotator interface {
+	GetAnnotations() map[string]string
+	SetAnnotations(map[string]string)
+}
+
+func UpdateAnnotations(obj Annotator, desiredAnnotations ...map[string]string) {
+	annotations := obj.GetAnnotations()
+
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	for _, annotationsSource := range desiredAnnotations {
+		for k, v := range annotationsSource {
+			annotations[k] = v
+		}
+	}
+	obj.SetAnnotations(annotations)
 }
