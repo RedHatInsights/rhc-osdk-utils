@@ -212,7 +212,7 @@ func ListMerge(listStrs []string) (string, error) {
 func MakeOwnerReference(i client.Object) metav1.OwnerReference {
 	ovk := i.GetObjectKind().GroupVersionKind()
 	return metav1.OwnerReference{
-		APIVersion: ovk.Version,
+		APIVersion: ovk.GroupVersion().String(),
 		Kind:       ovk.Kind,
 		Name:       i.GetName(),
 		UID:        i.GetUID(),
