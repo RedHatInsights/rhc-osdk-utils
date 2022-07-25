@@ -2,9 +2,11 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	b64 "encoding/base64"
 	"fmt"
-	"math/rand"
+	"math/big"
+	mrand "math/rand"
 	"reflect"
 	"sort"
 	"strconv"
@@ -22,36 +24,55 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const pCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<>=?@^~"
 const rCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 const lCharSet = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	mrand.Seed(time.Now().UnixNano())
 }
 
 // Log is a null logger instance.
 var Log logr.Logger = logr.Discard()
 
-// RandString generates a random string of length n
-func RandString(n int) string {
+func buildRandString(n int, charset string) string {
 	b := make([]byte, n)
 
 	for i := range b {
-		b[i] = rCharSet[rand.Intn(len(rCharSet))]
+		b[i] = charset[mrand.Intn(len(charset))]
 	}
 
 	return string(b)
 }
 
-// RandStringLower generates a random string of length n
-func RandStringLower(n int) string {
-	b := make([]byte, n)
-
-	for i := range b {
-		b[i] = lCharSet[rand.Intn(len(lCharSet))]
+// RandString generates a random string of length n
+func RandPassword(n int) (string, error) {
+	if n < 14 {
+		return "", fmt.Errorf("random password does not meet complexity guidelines must be more than 14 chars")
 	}
 
-	return string(b)
+	b := make([]byte, n)
+
+	max := big.NewInt(int64(len(pCharSet)))
+	for i := range b {
+		num, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			return "", err
+		}
+		b[i] = pCharSet[num.Int64()]
+	}
+
+	return string(b), nil
+}
+
+// RandString generates a random string of length n
+func RandString(n int) string {
+	return buildRandString(n, rCharSet)
+}
+
+// RandStringLower generates a random string of length n
+func RandStringLower(n int) string {
+	return buildRandString(n, lCharSet)
 }
 
 func Contains(list []string, s string) bool {

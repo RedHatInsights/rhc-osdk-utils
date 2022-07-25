@@ -49,6 +49,24 @@ func TestRandString(t *testing.T) {
 	assert.NotEqual(t, a, b)
 }
 
+func TestRandStringLower(t *testing.T) {
+	a := RandStringLower(12)
+	b := RandStringLower(12)
+	assert.NotEqual(t, a, b)
+}
+
+func TestRandPass(t *testing.T) {
+	a, err1 := RandPassword(16)
+	b, err2 := RandPassword(16)
+	assert.NotEqual(t, a, b)
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+
+	c, err := RandPassword(12)
+	assert.Error(t, err)
+	assert.Equal(t, "", c)
+}
+
 type TestAnnotator struct {
 	annotations map[string]string
 }
