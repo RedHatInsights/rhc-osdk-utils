@@ -8,10 +8,6 @@ import (
 	core "k8s.io/api/core/v1"
 )
 
-func TestKafkaReconcilerFns(t *testing.T) {
-
-}
-
 func TestConverterFuncs(t *testing.T) {
 	t.Run("Test intMin", func(t *testing.T) {
 		answer, _ := IntMin([]string{"4", "6", "7"})
@@ -65,6 +61,13 @@ func TestRandPass(t *testing.T) {
 	c, err := RandPassword(12)
 	assert.Error(t, err)
 	assert.Equal(t, "", c)
+}
+
+func TestRandPassMinimal(t *testing.T) {
+	a, _ := RandPassword(16, "abcd")
+	for _, ch := range a {
+		assert.Contains(t, "abcd", string(ch))
+	}
 }
 
 type TestAnnotator struct {

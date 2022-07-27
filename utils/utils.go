@@ -46,20 +46,24 @@ func buildRandString(n int, charset string) string {
 }
 
 // RandString generates a random string of length n
-func RandPassword(n int) (string, error) {
+func RandPassword(n int, charset ...string) (string, error) {
+	usedCharset := pCharSet
+	if len(charset) != 0 {
+		usedCharset = charset[0]
+	}
 	if n < 14 {
 		return "", fmt.Errorf("random password does not meet complexity guidelines must be more than 14 chars")
 	}
 
 	b := make([]byte, n)
 
-	max := big.NewInt(int64(len(pCharSet)))
+	max := big.NewInt(int64(len(usedCharset)))
 	for i := range b {
 		num, err := rand.Int(rand.Reader, max)
 		if err != nil {
 			return "", err
 		}
-		b[i] = pCharSet[num.Int64()]
+		b[i] = usedCharset[num.Int64()]
 	}
 
 	return string(b), nil
