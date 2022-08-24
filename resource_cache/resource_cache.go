@@ -9,6 +9,7 @@ import (
 	"github.com/RedHatInsights/rhc-osdk-utils/utils"
 	"github.com/go-logr/logr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	core "k8s.io/api/core/v1"
 
@@ -220,9 +221,17 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
 	o.registerGVK(object)
 	update, err := utils.UpdateOrErr(o.client.Get(o.ctx, nn, object))
-
 	if err != nil {
 		return err
+	}
+
+	objectLabels := object.GetLabels()
+
+	for _, value := range objectLabels {
+		labelErrList := validation.IsValidLabelValue(value)
+		if len(labelErrList) != 0 {
+			return fmt.Errorf("invalid label for object in [%s]", nn.Namespace)
+		}
 	}
 
 	if _, ok := o.data[resourceIdent][nn]; ok {
