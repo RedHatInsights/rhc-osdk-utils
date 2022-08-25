@@ -232,7 +232,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 	for _, value := range objectLabels {
 		labelErrList := validation.IsValidLabelValue(value)
 		if len(labelErrList) != 0 {
-			o.Recorder.Eventf(object, "Warning", "LabelNameInvalid", "ClowdApp [%s] has no job defined for that name", object.GetName())
+			o.Recorder.Eventf(object, "Warning", "LabelNameInvalid", "Resource [%s] has invalid labels", object.GetName())
 			return fmt.Errorf("invalid label for object in [%s]", nn.Namespace)
 		}
 	}
