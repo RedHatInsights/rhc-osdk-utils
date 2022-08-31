@@ -15,7 +15,6 @@ import (
 	core "k8s.io/api/core/v1"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 
@@ -139,7 +138,6 @@ type ObjectCache struct {
 	ctx             context.Context
 	log             logr.Logger
 	config          *CacheConfig
-	Recorder        record.EventRecorder
 }
 
 func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs map[schema.GroupVersionKind]bool, debugOptions DebugOptions) *CacheConfig {
@@ -224,7 +222,7 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
 	err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("invalid label for object [%s]", object.GetName())
+		return fmt.Errorf("invalid label for object [%s] in namespace [%s]", object.GetName(), object.GetNamespace())
 	}
 
 	o.registerGVK(object)
@@ -298,7 +296,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) error {
 	err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("label invalid for [%s]", object.GetName())
+		return fmt.Errorf("label invalid for object [%s] in namespace [%s]", object.GetName(), object.GetNamespace())
 	}
 
 	if _, ok := o.data[resourceIdent]; !ok {
