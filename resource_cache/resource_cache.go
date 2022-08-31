@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/RedHatInsights/go-difflib/difflib"
 	"github.com/RedHatInsights/rhc-osdk-utils/utils"
@@ -617,7 +618,7 @@ func validateObject(object client.Object) error {
 	for _, value := range objectLabels {
 		labelErrList := validation.IsValidLabelValue(value)
 		if len(labelErrList) != 0 {
-			return fmt.Errorf("error validation error")
+			return fmt.Errorf("label validation error: %s", strings.Join(labelErrList, "\n"))
 		}
 	}
 
