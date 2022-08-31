@@ -227,14 +227,9 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 		return err
 	}
 
-	objectLabels := object.GetLabels()
-
-	for _, value := range objectLabels {
-		labelErrList := validation.IsValidLabelValue(value)
-		if len(labelErrList) != 0 {
-			o.Recorder.Eventf(object, "Warning", "LabelNameInvalid", "Resource [%s] has invalid labels", object.GetName())
-			return fmt.Errorf("invalid label for object in [%s]", nn.Namespace)
-		}
+	err = validateObject(object)
+	if err != nil {
+		return fmt.Errorf("invalid label for object [%s]", object.GetName())
 	}
 
 	if _, ok := o.data[resourceIdent][nn]; ok {
@@ -300,6 +295,11 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 // Update takes the item and tries to update the version in the cache. This will fail if the item is
 // not in the cache. A previous provider should have "created" the item before it can be updated.
 func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) error {
+	err := validateObject(object)
+	if err != nil {
+		return fmt.Errorf("label invalid for object [%s]", object.GetName())
+	}
+
 	if _, ok := o.data[resourceIdent]; !ok {
 		return fmt.Errorf("object cache not found, cannot update")
 	}
@@ -609,4 +609,17 @@ func getNamespacedNameFromRuntime(object client.Object) (types.NamespacedName, e
 	}
 
 	return nn, nil
+}
+
+func validateObject(object client.Object) error {
+	objectLabels := object.GetLabels()
+
+	for _, value := range objectLabels {
+		labelErrList := validation.IsValidLabelValue(value)
+		if len(labelErrList) != 0 {
+			return fmt.Errorf("error validation error")
+		}
+	}
+
+	return nil
 }
