@@ -222,15 +222,15 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 // blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
+	err := validateObject(object)
+	if err != nil {
+		return fmt.Errorf("invalid label for object [%s]", object.GetName())
+	}
+
 	o.registerGVK(object)
 	update, err := utils.UpdateOrErr(o.client.Get(o.ctx, nn, object))
 	if err != nil {
 		return err
-	}
-
-	err = validateObject(object)
-	if err != nil {
-		return fmt.Errorf("invalid label for object [%s]", object.GetName())
 	}
 
 	if _, ok := o.data[resourceIdent][nn]; ok {
@@ -618,7 +618,7 @@ func validateObject(object client.Object) error {
 	for _, value := range objectLabels {
 		labelErrList := validation.IsValidLabelValue(value)
 		if len(labelErrList) != 0 {
-			return fmt.Errorf("label validation error: %s", strings.Join(labelErrList, "\n"))
+			return fmt.Errorf("label validation error: \n%s", strings.Join(labelErrList, "\n"))
 		}
 	}
 
