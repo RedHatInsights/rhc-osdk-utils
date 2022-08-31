@@ -223,7 +223,7 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
 	labelErrStr, err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("invalid label for object [%s] in namespace [%s]: [%s]", object.GetName(), object.GetNamespace(), labelErrStr)
+		return fmt.Errorf("invalid label for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
 	}
 
 	o.registerGVK(object)
@@ -297,7 +297,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) error {
 	labelErrStr, err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("label invalid for object [%s] in namespace [%s]: [%s]", object.GetName(), object.GetNamespace(), labelErrStr)
+		return fmt.Errorf("label invalid for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
 	}
 
 	if _, ok := o.data[resourceIdent]; !ok {
