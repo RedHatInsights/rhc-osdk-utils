@@ -298,7 +298,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) error {
 	err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("label invalid for object [%s]", object.GetName())
+		return fmt.Errorf("label invalid for [%s]", object.GetName())
 	}
 
 	if _, ok := o.data[resourceIdent]; !ok {
