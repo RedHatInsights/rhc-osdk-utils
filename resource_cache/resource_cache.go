@@ -3,7 +3,6 @@ package resource_cache
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -221,9 +220,9 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 // blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
-	labelErrStr, err := validateObject(object)
+	err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("invalid label for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
+		return err
 	}
 
 	o.registerGVK(object)
@@ -295,9 +294,9 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 // Update takes the item and tries to update the version in the cache. This will fail if the item is
 // not in the cache. A previous provider should have "created" the item before it can be updated.
 func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) error {
-	labelErrStr, err := validateObject(object)
+	err := validateObject(object)
 	if err != nil {
-		return fmt.Errorf("label invalid for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
+		return err
 	}
 
 	if _, ok := o.data[resourceIdent]; !ok {
@@ -611,15 +610,19 @@ func getNamespacedNameFromRuntime(object client.Object) (types.NamespacedName, e
 	return nn, nil
 }
 
-func validateObject(object client.Object) (string, error) {
+func validateObject(object client.Object) error {
 	objectLabels := object.GetLabels()
 
 	for _, value := range objectLabels {
 		labelErrList := validation.IsValidLabelValue(value)
+
+		labelErrStr := strings.Join(labelErrList, "\n")
+
 		if len(labelErrList) != 0 {
-			return strings.Join(labelErrList, "\n"), errors.New("label validation error")
+			return fmt.Errorf("invalid label for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
+			//return , errors.New("label validation error")
 		}
 	}
 
-	return "", nil
+	return nil
 }
