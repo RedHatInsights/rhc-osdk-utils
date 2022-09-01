@@ -620,7 +620,6 @@ func validateObject(object client.Object) error {
 
 		if len(labelErrList) != 0 {
 			return fmt.Errorf("invalid label for object [%s] in namespace [%s]: %s", object.GetName(), object.GetNamespace(), labelErrStr)
-			//return , errors.New("label validation error")
 		}
 	}
 
