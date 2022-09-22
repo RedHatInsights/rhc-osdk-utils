@@ -388,12 +388,14 @@ func StringPtr(str string) *string {
 	return &s
 }
 
-type Annotator interface {
+type MetaMutator interface {
 	GetAnnotations() map[string]string
 	SetAnnotations(map[string]string)
+	GetLabels() map[string]string
+	SetLabels(map[string]string)
 }
 
-func UpdateAnnotations(obj Annotator, desiredAnnotations ...map[string]string) {
+func UpdateAnnotations(obj MetaMutator, desiredAnnotations ...map[string]string) {
 	annotations := obj.GetAnnotations()
 
 	if annotations == nil {
@@ -406,4 +408,20 @@ func UpdateAnnotations(obj Annotator, desiredAnnotations ...map[string]string) {
 		}
 	}
 	obj.SetAnnotations(annotations)
+}
+
+func UpdateLabels(obj MetaMutator, desiredLabels ...map[string]string) {
+	labels := obj.GetLabels()
+
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	for _, labelsSource := range desiredLabels {
+		for k, v := range labelsSource {
+			labels[k] = v
+		}
+	}
+
+	obj.SetLabels(labels)
 }
