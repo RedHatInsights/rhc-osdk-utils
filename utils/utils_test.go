@@ -70,23 +70,32 @@ func TestRandPassMinimal(t *testing.T) {
 	}
 }
 
-type TestAnnotator struct {
+type TestMetaMutator struct {
 	annotations map[string]string
+	labels      map[string]string
 }
 
-func (a *TestAnnotator) SetAnnotations(annos map[string]string) {
+func (a *TestMetaMutator) SetAnnotations(annos map[string]string) {
 	a.annotations = annos
 }
 
-func (a *TestAnnotator) GetAnnotations() map[string]string {
+func (a *TestMetaMutator) GetAnnotations() map[string]string {
 	return a.annotations
 }
 
-func TestAnnotatorSingle(t *testing.T) {
+func (a *TestMetaMutator) SetLabels(labs map[string]string) {
+	a.labels = labs
+}
+
+func (a *TestMetaMutator) GetLabels() map[string]string {
+	return a.labels
+}
+
+func TestMetaMutatorAnnosSingle(t *testing.T) {
 	initAnnos := map[string]string{
 		"test": "colour me green",
 	}
-	b := &TestAnnotator{annotations: initAnnos}
+	b := &TestMetaMutator{annotations: initAnnos}
 	UpdateAnnotations(b, map[string]string{
 		"test2": "ready steady restart",
 	})
@@ -99,12 +108,12 @@ func TestAnnotatorSingle(t *testing.T) {
 	assert.Equal(t, expected, b.GetAnnotations())
 }
 
-func TestAnnotatorMulti(t *testing.T) {
+func TestMetaMutatorAnnosMulti(t *testing.T) {
 	initAnnos := map[string]string{
 		"test": "colour me green",
 	}
 
-	b := &TestAnnotator{annotations: initAnnos}
+	b := &TestMetaMutator{annotations: initAnnos}
 	UpdateAnnotations(b,
 		map[string]string{
 			"test2": "ready steady restart",
@@ -120,4 +129,44 @@ func TestAnnotatorMulti(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, b.GetAnnotations())
+}
+
+func TestMetaMutatorLabelsSingle(t *testing.T) {
+	initLabels := map[string]string{
+		"test": "colour me green",
+	}
+	b := &TestMetaMutator{labels: initLabels}
+	UpdateLabels(b, map[string]string{
+		"test2": "ready steady restart",
+	})
+
+	expected := map[string]string{
+		"test":  "colour me green",
+		"test2": "ready steady restart",
+	}
+
+	assert.Equal(t, expected, b.GetLabels())
+}
+
+func TestMetaMutatorLabelsMulti(t *testing.T) {
+	initLabels := map[string]string{
+		"test": "colour me green",
+	}
+
+	b := &TestMetaMutator{labels: initLabels}
+	UpdateLabels(b,
+		map[string]string{
+			"test2": "ready steady restart",
+		},
+		map[string]string{
+			"test3": "with a 1,2,3",
+		})
+
+	expected := map[string]string{
+		"test":  "colour me green",
+		"test2": "ready steady restart",
+		"test3": "with a 1,2,3",
+	}
+
+	assert.Equal(t, expected, b.GetLabels())
 }
