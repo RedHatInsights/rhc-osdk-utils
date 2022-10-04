@@ -149,9 +149,10 @@ func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs ma
 }
 
 type DebugOptions struct {
-	Create bool
-	Update bool
-	Apply  bool
+	Create       bool
+	Update       bool
+	Apply        bool
+	Registration bool
 }
 
 type CacheConfig struct {
@@ -209,7 +210,9 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 	if _, ok := o.config.protectedGVKs[gvk]; !ok {
 		if _, ok := o.config.possibleGVKs[gvk]; !ok {
 			o.config.possibleGVKs[gvk] = true
-			fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
+			if o.config.debugOptions.Registration {
+				fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
+			}
 		}
 	}
 }
