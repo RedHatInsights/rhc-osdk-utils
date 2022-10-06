@@ -155,12 +155,17 @@ type DebugOptions struct {
 	Registration bool
 }
 
+type Options struct {
+	StrictGVK bool
+}
+
 type CacheConfig struct {
 	possibleGVKs  map[schema.GroupVersionKind]bool
 	protectedGVKs map[schema.GroupVersionKind]bool
 	scheme        *runtime.Scheme
 	debugOptions  DebugOptions
 	logKey        interface{}
+	Options       Options
 }
 
 type k8sResource struct {
@@ -221,7 +226,14 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 // blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
-	o.registerGVK(object)
+	if o.config.Options.StrictGVK {
+		gvk, _ := utils.GetKindFromObj(o.scheme, object)
+		if _, ok := o.config.possibleGVKs[gvk]; !ok {
+			return fmt.Errorf("gvk [%s] of object has not been added to possibleGVKs in config", gvk)
+		}
+	} else {
+		o.registerGVK(object)
+	}
 	update, err := utils.UpdateOrErr(o.client.Get(o.ctx, nn, object))
 
 	if err != nil {
