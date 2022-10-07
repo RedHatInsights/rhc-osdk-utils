@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/RedHatInsights/rhc-osdk-utils/utils"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
@@ -117,7 +118,7 @@ func TestObjectCache(t *testing.T) {
 
 	log := zapr.NewLogger(zapLog)
 
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-service",
@@ -269,7 +270,7 @@ func TestObjectCacheOrdering(t *testing.T) {
 	config := NewCacheConfig(scheme, nil, nil)
 
 	ctx := context.Background()
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -348,7 +349,7 @@ func TestObjectCachePreseedStrictFail(t *testing.T) {
 
 	ctx := context.Background()
 
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -392,7 +393,7 @@ func TestObjectCachePreseedStrictPass(t *testing.T) {
 
 	ctx := context.Background()
 
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -421,7 +422,7 @@ func TestObjectCacheNonMatchingObject(t *testing.T) {
 
 	ctx := context.Background()
 	config := NewCacheConfig(scheme, nil, nil)
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-writenow",
@@ -450,7 +451,7 @@ func TestObjectCacheWriteNow(t *testing.T) {
 
 	ctx := context.Background()
 	config := NewCacheConfig(scheme, nil, nil)
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-writenow",
@@ -489,7 +490,7 @@ func TestObjectReconcile(t *testing.T) {
 
 	ctx := context.Background()
 
-	oCache := NewObjectCache(ctx, k8sClient, log, config)
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-reconcile",
@@ -545,10 +546,32 @@ func TestObjectReconcile(t *testing.T) {
 
 	config2 := NewCacheConfig(scheme, GVKMap{schema.GroupVersionKind{Kind: "ConfigMap", Version: "v1"}: true}, nil)
 
-	oCache2 := NewObjectCache(ctx, k8sClient, log, config2)
+	oCache2 := NewObjectCache(ctx, k8sClient, &log, config2)
 	err = oCache2.Reconcile(owner.UID)
 	assert.Nil(t, err, "reconcile error wasn't nil")
 
 	err = k8sClient.Get(context.Background(), nn, &a)
 	assert.NotNil(t, err, "shouldn't be able to get object")
+}
+
+func TestCacheAddPossibleGVK(t *testing.T) {
+
+	config := NewCacheConfig(scheme, nil, nil)
+
+	ctx := context.Background()
+
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &core.ConfigMap{},
+		WriteNow: true,
+	}
+
+	oCache.AddPossibleGVKFromIdent(SingleIdent)
+
+	obj, err := utils.GetKindFromObj(scheme, SingleIdent.GetType())
+	assert.Nil(t, err, "get object was not nil")
+	assert.Contains(t, oCache.config.possibleGVKs, obj)
 }

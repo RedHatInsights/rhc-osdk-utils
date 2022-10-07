@@ -189,7 +189,7 @@ type GVKMap map[schema.GroupVersionKind]bool
 // NewObjectCache returns an instance of the ObjectCache which defers all applys until the end of
 // the reconciliation process, and allows providers to pull objects out of the cache for
 // modification.
-func NewObjectCache(ctx context.Context, kclient client.Client, logger logr.Logger, config *CacheConfig) ObjectCache {
+func NewObjectCache(ctx context.Context, kclient client.Client, logger *logr.Logger, config *CacheConfig) ObjectCache {
 
 	if config.scheme == nil {
 		config.scheme = runtime.NewScheme()
@@ -205,7 +205,7 @@ func NewObjectCache(ctx context.Context, kclient client.Client, logger logr.Logg
 	if logger == nil {
 		log = logr.Discard()
 	} else {
-		log = logger
+		log = *logger
 	}
 
 	return ObjectCache{
@@ -557,6 +557,15 @@ func (o *ObjectCache) Debug() {
 			gvks, _, _ := o.scheme.ObjectKinds(i.Object)
 			gvk := gvks[0]
 			fmt.Printf("\nObject %v - %v - %v - %v\n", nn, i.Update, gvk, pi)
+		}
+	}
+}
+
+func (o *ObjectCache) AddPossibleGVKFromIdent(objs ...ResourceIdent) {
+	for _, obj := range objs {
+		gvk, _ := utils.GetKindFromObj(o.scheme, obj.GetType())
+		if _, ok := o.config.protectedGVKs[gvk]; !ok {
+			o.config.possibleGVKs[gvk] = true
 		}
 	}
 }
