@@ -13,6 +13,7 @@ import (
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -32,6 +33,7 @@ var testEnv *envtest.Environment
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	log      logr.Logger
 )
 
 func init() {
@@ -57,8 +59,9 @@ func TestMain(m *testing.M) {
 	// call flag.Parse() here if TestMain uses flags
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
 	logger, _ = zap.NewProduction()
+	log = zapr.NewLogger(logger)
 	defer logger.Sync()
-	logger.Info("bootstrapping test environment")
+	log.Info("bootstrapping test environment")
 
 	testEnv = &envtest.Environment{}
 
@@ -107,22 +110,14 @@ type Key string
 
 func TestObjectCache(t *testing.T) {
 
-	config := CacheConfig{
-		scheme:        scheme,
-		possibleGVKs:  make(GVKMap),
-		protectedGVKs: make(GVKMap),
-		logKey:        Key("bunk"),
-	}
-	var log logr.Logger
+	config := NewCacheConfig(scheme, nil, nil)
 
 	ctx := context.Background()
 	zapLog, _ := zap.NewDevelopment()
 
-	log = zapr.NewLogger(zapLog)
+	log := zapr.NewLogger(zapLog)
 
-	ctx = context.WithValue(ctx, Key("bunk"), &log)
-
-	oCache := NewObjectCache(ctx, k8sClient, &config)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-service",
@@ -271,22 +266,10 @@ func createRandomServices(n int) []identAndObject {
 
 func TestObjectCacheOrdering(t *testing.T) {
 
-	config := CacheConfig{
-		scheme:        scheme,
-		possibleGVKs:  make(GVKMap),
-		protectedGVKs: make(GVKMap),
-		logKey:        Key("bunk"),
-	}
-	var log logr.Logger
+	config := NewCacheConfig(scheme, nil, nil)
 
 	ctx := context.Background()
-	zapLog, _ := zap.NewDevelopment()
-
-	log = zapr.NewLogger(zapLog)
-
-	ctx = context.WithValue(ctx, Key("bunk"), &log)
-
-	oCache := NewObjectCache(ctx, k8sClient, &config)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -357,25 +340,15 @@ func TestObjectCacheOrdering(t *testing.T) {
 
 func TestObjectCachePreseedStrictFail(t *testing.T) {
 
-	config := NewCacheConfig(
-		scheme,
-		make(GVKMap),
-		make(GVKMap),
-		Options{
-			StrictGVK:    true,
-			DebugOptions: DebugOptions{},
-		},
+	config := NewCacheConfig(scheme, nil, nil, Options{
+		StrictGVK:    true,
+		DebugOptions: DebugOptions{},
+	},
 	)
-	var log logr.Logger
 
 	ctx := context.Background()
-	zapLog, _ := zap.NewDevelopment()
 
-	log = zapr.NewLogger(zapLog)
-
-	ctx = context.WithValue(ctx, Key("bunk"), &log)
-
-	oCache := NewObjectCache(ctx, k8sClient, config)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -402,31 +375,24 @@ func TestObjectCachePreseedStrictFail(t *testing.T) {
 
 func TestObjectCachePreseedStrictPass(t *testing.T) {
 
-	config := CacheConfig{
-		scheme: scheme,
-		possibleGVKs: GVKMap{
+	config := NewCacheConfig(
+		scheme,
+		GVKMap{
 			{
 				Group:   "apps",
 				Version: "v1",
 				Kind:    "Deployment",
 			}: true,
 		},
-		protectedGVKs: make(GVKMap),
-		logKey:        Key("bunk"),
-		options: Options{
+		nil,
+		Options{
 			StrictGVK: true,
 		},
-	}
-	var log logr.Logger
+	)
 
 	ctx := context.Background()
-	zapLog, _ := zap.NewDevelopment()
 
-	log = zapr.NewLogger(zapLog)
-
-	ctx = context.WithValue(ctx, Key("bunk"), &log)
-
-	oCache := NewObjectCache(ctx, k8sClient, &config)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -449,4 +415,140 @@ func TestObjectCachePreseedStrictPass(t *testing.T) {
 
 	err := oCache.Create(SingleIdent, nn, &a)
 	assert.Nil(t, err, "create error wasn't nil")
+}
+
+func TestObjectCacheNonMatchingObject(t *testing.T) {
+
+	ctx := context.Background()
+	config := NewCacheConfig(scheme, nil, nil)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
+
+	nn := types.NamespacedName{
+		Name:      "test-writenow",
+		Namespace: "default",
+	}
+
+	a := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+	}
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &core.Service{},
+		WriteNow: true,
+	}
+
+	err := oCache.Create(SingleIdent, nn, &a)
+	assert.ErrorContains(t, err, "create: resourceIdent type does not match runtime object [default/test-writenow] [/v1, Kind=Service] [/v1, Kind=ConfigMap]", err)
+}
+
+func TestObjectCacheWriteNow(t *testing.T) {
+
+	ctx := context.Background()
+	config := NewCacheConfig(scheme, nil, nil)
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
+
+	nn := types.NamespacedName{
+		Name:      "test-writenow",
+		Namespace: "default",
+	}
+
+	a := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+	}
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &core.ConfigMap{},
+		WriteNow: true,
+	}
+
+	err := oCache.Create(SingleIdent, nn, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	err = oCache.Update(SingleIdent, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	cfgmap := core.ConfigMap{}
+
+	err = k8sClient.Get(context.Background(), nn, &cfgmap)
+	assert.Nil(t, err, "error from k8s client get for configmap")
+}
+
+func TestObjectReconcile(t *testing.T) {
+
+	config := NewCacheConfig(scheme, nil, nil)
+
+	ctx := context.Background()
+
+	oCache := NewObjectCache(ctx, k8sClient, log, config)
+
+	nn := types.NamespacedName{
+		Name:      "test-reconcile",
+		Namespace: "default",
+	}
+
+	owner := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name + "owner",
+			Namespace: nn.Namespace,
+		},
+	}
+
+	err := k8sClient.Create(ctx, &owner)
+	assert.Nil(t, err, "create error wasn't nil")
+	err = k8sClient.Get(ctx, types.NamespacedName{
+		Name:      nn.Name + "owner",
+		Namespace: nn.Namespace,
+	}, &owner)
+	assert.Nil(t, err, "get error wasn't nil")
+
+	a := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+	}
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &core.ConfigMap{},
+		WriteNow: true,
+	}
+
+	err = oCache.Create(SingleIdent, nn, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	a.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       nn.Name + "owner",
+		UID:        owner.UID,
+	}}
+
+	err = oCache.Update(SingleIdent, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	oCache.ApplyAll()
+
+	err = k8sClient.Get(context.Background(), nn, &a)
+	assert.Nil(t, err, "error from k8s client get for configmap")
+
+	config2 := NewCacheConfig(scheme, GVKMap{schema.GroupVersionKind{Kind: "ConfigMap", Version: "v1"}: true}, nil)
+
+	oCache2 := NewObjectCache(ctx, k8sClient, log, config2)
+	err = oCache2.Reconcile(owner.UID)
+	assert.Nil(t, err, "reconcile error wasn't nil")
+
+	err = k8sClient.Get(context.Background(), nn, &a)
+	assert.NotNil(t, err, "shouldn't be able to get object")
 }

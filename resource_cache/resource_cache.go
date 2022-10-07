@@ -138,13 +138,22 @@ type ObjectCache struct {
 	config          *CacheConfig
 }
 
-func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs GVKMap, options Options) *CacheConfig {
+func NewCacheConfig(scheme *runtime.Scheme, possibleGVKs, protectedGVKs GVKMap, options ...Options) *CacheConfig {
+	if possibleGVKs == nil {
+		possibleGVKs = make(GVKMap)
+	}
+	if protectedGVKs == nil {
+		protectedGVKs = make(GVKMap)
+	}
+	var optionObject = Options{}
+	if len(options) >= 1 {
+		optionObject = options[0]
+	}
 	return &CacheConfig{
-		possibleGVKs:  make(GVKMap),
+		possibleGVKs:  possibleGVKs,
 		protectedGVKs: protectedGVKs,
 		scheme:        scheme,
-		logKey:        logKey,
-		options:       options,
+		options:       optionObject,
 	}
 }
 
@@ -164,7 +173,6 @@ type CacheConfig struct {
 	possibleGVKs  GVKMap
 	protectedGVKs GVKMap
 	scheme        *runtime.Scheme
-	logKey        interface{}
 	options       Options
 }
 
@@ -181,7 +189,7 @@ type GVKMap map[schema.GroupVersionKind]bool
 // NewObjectCache returns an instance of the ObjectCache which defers all applys until the end of
 // the reconciliation process, and allows providers to pull objects out of the cache for
 // modification.
-func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheConfig) ObjectCache {
+func NewObjectCache(ctx context.Context, kclient client.Client, logger logr.Logger, config *CacheConfig) ObjectCache {
 
 	if config.scheme == nil {
 		config.scheme = runtime.NewScheme()
@@ -192,13 +200,12 @@ func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheCon
 		config = &CacheConfig{}
 	}
 
-	logCheck := ctx.Value(config.logKey)
 	var log logr.Logger
 
-	if logCheck == nil {
+	if logger == nil {
 		log = logr.Discard()
 	} else {
-		log = (*ctx.Value(config.logKey).(*logr.Logger)).WithName("resource-cache-client")
+		log = logger
 	}
 
 	return ObjectCache{
