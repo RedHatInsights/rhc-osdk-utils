@@ -13,7 +13,6 @@ import (
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -110,8 +109,8 @@ func TestObjectCache(t *testing.T) {
 
 	config := CacheConfig{
 		scheme:        scheme,
-		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
-		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		possibleGVKs:  make(GVKMap),
+		protectedGVKs: make(GVKMap),
 		logKey:        Key("bunk"),
 	}
 	var log logr.Logger
@@ -274,8 +273,8 @@ func TestObjectCacheOrdering(t *testing.T) {
 
 	config := CacheConfig{
 		scheme:        scheme,
-		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
-		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		possibleGVKs:  make(GVKMap),
+		protectedGVKs: make(GVKMap),
 		logKey:        Key("bunk"),
 	}
 	var log logr.Logger
@@ -358,15 +357,15 @@ func TestObjectCacheOrdering(t *testing.T) {
 
 func TestObjectCachePreseedStrictFail(t *testing.T) {
 
-	config := CacheConfig{
-		scheme:        scheme,
-		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
-		protectedGVKs: make(map[schema.GroupVersionKind]bool),
-		logKey:        Key("bunk"),
-		Options: Options{
-			StrictGVK: true,
+	config := NewCacheConfig(
+		scheme,
+		make(GVKMap),
+		make(GVKMap),
+		Options{
+			StrictGVK:    true,
+			DebugOptions: DebugOptions{},
 		},
-	}
+	)
 	var log logr.Logger
 
 	ctx := context.Background()
@@ -376,7 +375,7 @@ func TestObjectCachePreseedStrictFail(t *testing.T) {
 
 	ctx = context.WithValue(ctx, Key("bunk"), &log)
 
-	oCache := NewObjectCache(ctx, k8sClient, &config)
+	oCache := NewObjectCache(ctx, k8sClient, config)
 
 	nn := types.NamespacedName{
 		Name:      "test-ordering",
@@ -405,16 +404,16 @@ func TestObjectCachePreseedStrictPass(t *testing.T) {
 
 	config := CacheConfig{
 		scheme: scheme,
-		possibleGVKs: map[schema.GroupVersionKind]bool{
+		possibleGVKs: GVKMap{
 			{
 				Group:   "apps",
 				Version: "v1",
 				Kind:    "Deployment",
 			}: true,
 		},
-		protectedGVKs: make(map[schema.GroupVersionKind]bool),
+		protectedGVKs: make(GVKMap),
 		logKey:        Key("bunk"),
-		Options: Options{
+		options: Options{
 			StrictGVK: true,
 		},
 	}

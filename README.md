@@ -3,7 +3,50 @@
 This document is broken down by package, providing examples of the various types and public APIs.
 
 ## Resource Cache
-TODO
+### Background Problem Statement
+The Resource Cache is a handy utility for working with k8s resources in situations where you need multiple blocks of code to have access to 
+resources before they are written to k8s, without having to explicitly pass the objects around. Consider the following, a `Deployment` resource needs to be updated by three blocks of code. Traditionally either the resources would need to be passed successively to the three blocks of code, or the resource would need to be written to k8s and then *got*, and *updated* by each subsequent block.
+
+In the first instance, the code is not only difficult to follow and maintain, but requires knowing explcitly which resourcs are needing to be passed to the calling functions. In the second instance, multiple writes need to be made to k8s meaning that either, the API gets excessive calls, or that, in the case of the deployment, a pod could be restarted multiple times needlessly.
+
+### The Resource Cache as a solution
+The resource cache solves this problem by holding a cache of objects, organized by type, that can be retrieved by name, or as a list and then updated. Once all code blocks are completed, everything which is in teh cache is written to k8s in a large block. This has other benefits too, stated thus:
+
+* less API calls to k8s
+* the blocks of code can operate on multiple resources of the same type without knowing their names
+* resources will only be written once generation code is complete and error free
+* cleaning up of unused resources is possible
+
+### Using the Resource Cache
+The Resource Cache is created via a config object.
+
+```go
+var (
+	scheme   = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apps.AddToScheme(scheme))
+}
+
+## Creationg of logger is omitted
+
+config := NewCacheConfig{
+    scheme:        scheme,
+    possibleGVKs:  make(GVKMap),
+    protectedGVKs: make(GVKMap),
+}
+
+ctx = context.WithValue(ctx, Key("context"), &log)
+
+oCache := NewObjectCache(ctx, k8sClient, &config)
+```
+
+A scheme object **must** be created and should be expected to contain every GVK that will be used in the cache. If an object is attempted to be added to the cache and it does not exist in the scheme, **problems will occur**. The `init()` function here shows the creation of a scheme and the addition of two schemas to it. One from the core client-go library for k8s and the other from the deployments schema.
+
+Next two empty maps are passed in
+
 
 ## Utils
 TODO
