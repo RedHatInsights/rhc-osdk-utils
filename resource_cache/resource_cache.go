@@ -138,13 +138,22 @@ type ObjectCache struct {
 	config          *CacheConfig
 }
 
-func NewCacheConfig(scheme *runtime.Scheme, logKey interface{}, protectedGVKs map[schema.GroupVersionKind]bool, debugOptions DebugOptions) *CacheConfig {
+func NewCacheConfig(scheme *runtime.Scheme, possibleGVKs, protectedGVKs GVKMap, options ...Options) *CacheConfig {
+	if possibleGVKs == nil {
+		possibleGVKs = make(GVKMap)
+	}
+	if protectedGVKs == nil {
+		protectedGVKs = make(GVKMap)
+	}
+	var optionObject = Options{}
+	if len(options) >= 1 {
+		optionObject = options[0]
+	}
 	return &CacheConfig{
-		possibleGVKs:  make(map[schema.GroupVersionKind]bool),
+		possibleGVKs:  possibleGVKs,
 		protectedGVKs: protectedGVKs,
 		scheme:        scheme,
-		logKey:        logKey,
-		debugOptions:  debugOptions,
+		options:       optionObject,
 	}
 }
 
@@ -155,12 +164,16 @@ type DebugOptions struct {
 	Registration bool
 }
 
+type Options struct {
+	StrictGVK    bool
+	DebugOptions DebugOptions
+}
+
 type CacheConfig struct {
-	possibleGVKs  map[schema.GroupVersionKind]bool
-	protectedGVKs map[schema.GroupVersionKind]bool
+	possibleGVKs  GVKMap
+	protectedGVKs GVKMap
 	scheme        *runtime.Scheme
-	debugOptions  DebugOptions
-	logKey        interface{}
+	options       Options
 }
 
 type k8sResource struct {
@@ -171,10 +184,12 @@ type k8sResource struct {
 	origObject client.Object
 }
 
+type GVKMap map[schema.GroupVersionKind]bool
+
 // NewObjectCache returns an instance of the ObjectCache which defers all applys until the end of
 // the reconciliation process, and allows providers to pull objects out of the cache for
 // modification.
-func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheConfig) ObjectCache {
+func NewObjectCache(ctx context.Context, kclient client.Client, logger *logr.Logger, config *CacheConfig) ObjectCache {
 
 	if config.scheme == nil {
 		config.scheme = runtime.NewScheme()
@@ -185,13 +200,12 @@ func NewObjectCache(ctx context.Context, kclient client.Client, config *CacheCon
 		config = &CacheConfig{}
 	}
 
-	logCheck := ctx.Value(config.logKey)
 	var log logr.Logger
 
-	if logCheck == nil {
+	if logger == nil {
 		log = logr.Discard()
 	} else {
-		log = (*ctx.Value(config.logKey).(*logr.Logger)).WithName("resource-cache-client")
+		log = *logger
 	}
 
 	return ObjectCache{
@@ -210,7 +224,7 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 	if _, ok := o.config.protectedGVKs[gvk]; !ok {
 		if _, ok := o.config.possibleGVKs[gvk]; !ok {
 			o.config.possibleGVKs[gvk] = true
-			if o.config.debugOptions.Registration {
+			if o.config.options.DebugOptions.Registration {
 				fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
 			}
 		}
@@ -221,7 +235,17 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 // blank object is stored in the cache it is imperative that the user of this function call Create
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
-	o.registerGVK(object)
+	if o.config.options.StrictGVK {
+		gvk, err := utils.GetKindFromObj(o.scheme, object)
+		if err != nil {
+			return fmt.Errorf("object type not in schema")
+		}
+		if _, ok := o.config.possibleGVKs[gvk]; !ok {
+			return fmt.Errorf("gvk [%s] of object has not been added to possibleGVKs in config", gvk)
+		}
+	} else {
+		o.registerGVK(object)
+	}
 	update, err := utils.UpdateOrErr(o.client.Get(o.ctx, nn, object))
 
 	if err != nil {
@@ -256,7 +280,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 	}
 
 	var jsonData []byte
-	if o.config.debugOptions.Create || o.config.debugOptions.Apply {
+	if o.config.options.DebugOptions.Create || o.config.options.DebugOptions.Apply {
 		jsonData, _ = json.MarshalIndent(object, "", "  ")
 	}
 
@@ -268,7 +292,7 @@ func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedNam
 		origObject: object.DeepCopyObject().(client.Object),
 	}
 
-	if o.config.debugOptions.Create {
+	if o.config.options.DebugOptions.Create {
 		diffVal := "hidden"
 
 		if object.GetObjectKind().GroupVersionKind() != secretCompare {
@@ -320,7 +344,7 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 
 	o.data[resourceIdent][nn].Object = object.DeepCopyObject().(client.Object)
 
-	if o.config.debugOptions.Update {
+	if o.config.options.DebugOptions.Update {
 		var jsonData []byte
 		jsonData, _ = json.MarshalIndent(o.data[resourceIdent][nn].Object, "", "  ")
 		if object.GetObjectKind().GroupVersionKind() == secretCompare {
@@ -333,7 +357,7 @@ func (o *ObjectCache) Update(resourceIdent ResourceIdent, object client.Object) 
 	if resourceIdent.GetWriteNow() {
 		i := o.data[resourceIdent][nn]
 
-		if o.config.debugOptions.Apply {
+		if o.config.options.DebugOptions.Apply {
 			jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
 			diff := difflib.UnifiedDiff{
 				A:        difflib.SplitLines(string(jsonData)),
@@ -488,7 +512,7 @@ func (o *ObjectCache) applyResourceCache(cachedData map[ResourceIdent]map[types.
 			continue
 		}
 		for n, i := range v {
-			if o.config.debugOptions.Apply {
+			if o.config.options.DebugOptions.Apply {
 				jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
 				diff := difflib.UnifiedDiff{
 					A:        difflib.SplitLines(string(jsonData)),
@@ -536,6 +560,15 @@ func (o *ObjectCache) Debug() {
 			gvks, _, _ := o.scheme.ObjectKinds(i.Object)
 			gvk := gvks[0]
 			fmt.Printf("\nObject %v - %v - %v - %v\n", nn, i.Update, gvk, pi)
+		}
+	}
+}
+
+func (o *ObjectCache) AddPossibleGVKFromIdent(objs ...ResourceIdent) {
+	for _, obj := range objs {
+		gvk, _ := utils.GetKindFromObj(o.scheme, obj.GetType())
+		if _, ok := o.config.protectedGVKs[gvk]; !ok {
+			o.config.possibleGVKs[gvk] = true
 		}
 	}
 }

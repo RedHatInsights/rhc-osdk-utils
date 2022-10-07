@@ -11,9 +11,8 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/setup-go@v2
-        name: Set up golang 1.16
         with:
-          go-version: '1.16.7'
+          go-version: '1.17.12'
       - name: Check out source code
         uses: actions/checkout@v2
       - name: Install package and dependencies
@@ -21,9 +20,9 @@ jobs:
           GOBIN=$PWD go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
       - name: Install k8s
         run: |
-          ./setup-envtest use 1.22 -p path
+          ./setup-envtest use 1.24 -p path
           ./setup-envtest list
       - name: Run tests
         run: |
-          export KUBEBUILDER_ASSETS=`./setup-envtest use 1.22 -p path`
+          export KUBEBUILDER_ASSETS=`./setup-envtest use 1.24 -p path`
           go test -v ./...
