@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/RedHatInsights/rhc-osdk-utils/utils"
 	"github.com/go-logr/logr"
@@ -554,12 +555,133 @@ func TestObjectReconcile(t *testing.T) {
 	assert.NotNil(t, err, "shouldn't be able to get object")
 }
 
-func TestCacheAddPossibleGVK(t *testing.T) {
-
+func TestObjectReconcileProtected(t *testing.T) {
+	protectedConfigMapGVK, _ := utils.GetKindFromObj(scheme, &core.ConfigMap{})
 	config := NewCacheConfig(scheme, nil, nil)
 
 	ctx := context.Background()
 
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
+
+	nn := types.NamespacedName{
+		Name:      "test-reconcile-protected",
+		Namespace: "default",
+	}
+
+	owner := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name + "owner",
+			Namespace: nn.Namespace,
+		},
+	}
+
+	err := k8sClient.Create(ctx, &owner)
+	assert.Nil(t, err, "create error wasn't nil")
+	err = k8sClient.Get(ctx, types.NamespacedName{
+		Name:      nn.Name + "owner",
+		Namespace: nn.Namespace,
+	}, &owner)
+	assert.Nil(t, err, "get error wasn't nil")
+
+	a := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+	}
+
+	b := core.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+	}
+
+	SingleIdent := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN",
+		Type:     &core.ConfigMap{},
+	}
+
+	SingleIdentSecret := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAINSec",
+		Type:     &core.Secret{},
+	}
+
+	err = oCache.Create(SingleIdent, nn, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	err = oCache.Create(SingleIdentSecret, nn, &b)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	a.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       nn.Name + "owner",
+		UID:        owner.UID,
+	}}
+
+	b.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       nn.Name + "owner",
+		UID:        owner.UID,
+	}}
+
+	err = oCache.Update(SingleIdent, &a)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	err = oCache.Update(SingleIdentSecret, &b)
+	assert.Nil(t, err, "create error wasn't nil")
+
+	oCache.Debug()
+
+	err = oCache.ApplyAll()
+	assert.Nil(t, err, "apply error wasn't nil")
+
+	err = k8sClient.Get(context.Background(), nn, &a)
+	assert.Nil(t, err, "error from k8s client get for configmap")
+
+	err = k8sClient.Get(context.Background(), nn, &b)
+	assert.Nil(t, err, "error from k8s client get for secret")
+
+	config2 := NewCacheConfig(scheme,
+		nil,
+		GVKMap{
+			protectedConfigMapGVK: true,
+		})
+
+	oCache2 := NewObjectCache(ctx, k8sClient, &log, config2)
+
+	oCache2.AddPossibleGVKFromIdent(SingleIdent)
+	oCache2.AddPossibleGVKFromIdent(SingleIdentSecret)
+
+	err = oCache2.ApplyAll()
+	assert.Nil(t, err, "apply error wasn't nil")
+
+	oCache.Debug()
+
+	err = oCache2.Reconcile(owner.UID)
+	assert.Nil(t, err, "reconcile error wasn't nil")
+
+	assert.Eventually(t, func() bool {
+		err := k8sClient.Get(context.Background(), nn, &b)
+		return err != nil
+	},
+		10*time.Second, 250*time.Millisecond,
+		"non-protected resource never disappeared",
+	)
+	time.Sleep(2000)
+	err = k8sClient.Get(context.Background(), nn, &a)
+	assert.Nil(t, err, "couldn't get the protected resource")
+
+}
+
+func TestCacheAddPossibleGVK(t *testing.T) {
+
+	config := NewCacheConfig(scheme, nil, nil)
+	ctx := context.Background()
 	oCache := NewObjectCache(ctx, k8sClient, &log, config)
 
 	SingleIdent := ResourceIdentSingle{

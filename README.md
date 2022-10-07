@@ -39,15 +39,11 @@ func init() {
 	utilruntime.Must(apps.AddToScheme(scheme))
 }
 
-## Creationg of logger is omitted
+# Creation of logger is omitted
 
-config := NewCacheConfig{
-    scheme:        scheme,
-    possibleGVKs:  make(GVKMap),
-    protectedGVKs: make(GVKMap),
-}
+config := NewCacheConfig(scheme, nil, nil)
 
-ctx = context.WithValue(ctx, Key("context"), &log)
+ctx = context.Background()
 
 oCache := NewObjectCache(ctx, k8sClient, &config)
 ```
@@ -99,6 +95,18 @@ resource, but you have another block of code that needs to get *all* of these an
 perhaps adding a `ClusterIP`, without having to know how they are named. Doing this in the cache is
 beneficial, as otherwise annotations would need to be added to the object if it were to be
 distinguishable from other items in k8s.
+
+#### possibleGVKs and strict mode
+When the Resource Cache is working in the default mode, GVKs are added to the possibleGVKs map *as
+they are created*. While this is the most optimal way to collect which GVKs to use for the
+`Reconcile()` stage, it leaves a bug in the system. An existing resource of kind X, will never be
+removed if the reconciliation no longer *creates* any item of type X, as the creation is the method
+of populating the `possibleGVKs` list.
+
+The Resource Cache allows for passing in an option flag to the config, which enables a strict mode.
+In this mode, the possibleGVKs **must** populated ahead of time. The `Create()` call will fail if
+strict mode is enabled and the kind of the object is not in the `possibleGVKs` list. You can also
+add GVKs to the list using the `AddPossibleGVKFromIdent()` function.
 
 #### Updating an item in the cache
 Once the item has been `created` (or initialised) we move on to updating the object. If we add data
@@ -194,17 +202,6 @@ a second API write.
 ```go
 NewSingleResourceIdent("prov", "purpose", &core.ConfigMap{}, rc.ResourceOptions{WriteNow: true})
 ```
-
-### possibleGVKs and strict mode
-When the Resource Cache is working in the default mode, GVKs are added to the possibleGVKs map *as
-they are created*. While this is the most optimal way to collect which GVKs to use for the
-`Reconcile()` stage, it leaves a bug in the system. An existing resource of kind X, will never be
-removed if the reconciliation no longer *creates* any item of type X, as the creation is the method
-of populating the `possibleGVKs` list.
-
-The Resource Cache allows for passing in an option flag to the config, which enables a strict mode.
-In this mode, the possibleGVKs **must** populated ahead of time. The `Create()` call will fail if
-strict mode is enabled and the kind of the object is not in the `possibleGVKs` list.
 
 ### Debugging
 There is a debug options struct which can be passed to the `config.Options` enabling independent
