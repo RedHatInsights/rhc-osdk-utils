@@ -236,7 +236,10 @@ func (o *ObjectCache) registerGVK(obj client.Object) {
 // before modifying the obejct they wish to be placed in the cache.
 func (o *ObjectCache) Create(resourceIdent ResourceIdent, nn types.NamespacedName, object client.Object) error {
 	if o.config.options.StrictGVK {
-		gvk, _ := utils.GetKindFromObj(o.scheme, object)
+		gvk, err := utils.GetKindFromObj(o.scheme, object)
+		if err != nil {
+			return fmt.Errorf("object type not in schema")
+		}
 		if _, ok := o.config.possibleGVKs[gvk]; !ok {
 			return fmt.Errorf("gvk [%s] of object has not been added to possibleGVKs in config", gvk)
 		}
