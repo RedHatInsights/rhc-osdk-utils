@@ -221,12 +221,10 @@ func NewObjectCache(ctx context.Context, kclient client.Client, logger *logr.Log
 
 func (o *ObjectCache) registerGVK(obj client.Object) {
 	gvk, _ := utils.GetKindFromObj(o.scheme, obj)
-	if _, ok := o.config.protectedGVKs[gvk]; !ok {
-		if _, ok := o.config.possibleGVKs[gvk]; !ok {
-			o.config.possibleGVKs[gvk] = true
-			if o.config.options.DebugOptions.Registration {
-				fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
-			}
+	if _, ok := o.config.possibleGVKs[gvk]; !ok {
+		o.config.possibleGVKs[gvk] = true
+		if o.config.options.DebugOptions.Registration {
+			fmt.Println("Registered type: ", gvk.Group, gvk.Kind, gvk.Version)
 		}
 	}
 }
@@ -567,17 +565,17 @@ func (o *ObjectCache) Debug() {
 func (o *ObjectCache) AddPossibleGVKFromIdent(objs ...ResourceIdent) {
 	for _, obj := range objs {
 		gvk, _ := utils.GetKindFromObj(o.scheme, obj.GetType())
-		if _, ok := o.config.protectedGVKs[gvk]; !ok {
-			o.config.possibleGVKs[gvk] = true
-		}
+		o.config.possibleGVKs[gvk] = true
 	}
 }
 
 // Reconcile performs the delete on objects that are no longer required
 func (o *ObjectCache) Reconcile(ownedUID types.UID, opts ...client.ListOption) error {
 
-	//fmt.Print("-----------------" + clowdObj.GetPrimaryLabel())
 	for gvk := range o.config.possibleGVKs {
+		if _, ok := o.config.protectedGVKs[gvk]; ok {
+			continue
+		}
 		v, ok := o.resourceTracker[gvk]
 
 		if !ok {
