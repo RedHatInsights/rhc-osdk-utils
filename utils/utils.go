@@ -59,7 +59,7 @@ func RandPassword(n int, charset ...string) (string, error) {
 
 	max := big.NewInt(int64(len(usedCharset)))
 	for i := range b {
-		num, err := rand.Int(rand.Reader, max)
+		num, err := rand.Int(rand.Reader, max) // nolint:gosec
 		if err != nil {
 			return "", err
 		}
@@ -107,14 +107,14 @@ func (u *Updater) Apply(ctx context.Context, cl client.Client, obj client.Object
 	meta := obj.(metav1.Object)
 
 	if *u {
-		//Log.Info("Updating resource", "namespace", meta.GetNamespace(), "name", meta.GetName(), "kind", kind)
+		// Log.Info("Updating resource", "namespace", meta.GetNamespace(), "name", meta.GetName(), "kind", kind)
 		err = cl.Update(ctx, obj)
 	} else {
 		if meta.GetName() == "" {
 			return nil
 		}
 
-		//Log.Info("Creating resource", "namespace", meta.GetNamespace(), "name", meta.GetName(), "kind", kind)
+		// Log.Info("Creating resource", "namespace", meta.GetNamespace(), "name", meta.GetName(), "kind", kind)
 		err = cl.Create(ctx, obj)
 	}
 

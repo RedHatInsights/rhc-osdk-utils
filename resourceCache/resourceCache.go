@@ -1,4 +1,4 @@
-package resource_cache
+package resourceCache
 
 import (
 	"context"
@@ -590,22 +590,23 @@ func (o *ObjectCache) Reconcile(ownedUID types.UID, opts ...client.ListOption) e
 			return err
 		}
 
-		//fmt.Printf("\n%v %v", gvk, len(nobjList.Items))
+		// fmt.Printf("\n%v %v", gvk, len(nobjList.Items))
 
 		for _, obj := range nobjList.Items {
-			for _, ownerRef := range obj.GetOwnerReferences() {
+			innerObj := obj
+			for _, ownerRef := range innerObj.GetOwnerReferences() {
 				if ownerRef.UID == ownedUID {
 					nn := types.NamespacedName{
-						Name:      obj.GetName(),
-						Namespace: obj.GetNamespace(),
+						Name:      innerObj.GetName(),
+						Namespace: innerObj.GetNamespace(),
 					}
 					if err != nil {
 						return err
 					}
-					//fmt.Printf("\n%v\n", v)
+					// fmt.Printf("\n%v\n", v)
 					if _, ok := v[nn]; !ok {
-						o.log.Info("DELETE resource ", "namespace", obj.GetNamespace(), "name", obj.GetName(), "kind", obj.GetObjectKind().GroupVersionKind().Kind)
-						err := o.client.Delete(o.ctx, &obj)
+						o.log.Info("DELETE resource ", "namespace", innerObj.GetNamespace(), "name", innerObj.GetName(), "kind", innerObj.GetObjectKind().GroupVersionKind().Kind)
+						err := o.client.Delete(o.ctx, &innerObj)
 						if err != nil {
 							return err
 						}
@@ -614,7 +615,7 @@ func (o *ObjectCache) Reconcile(ownedUID types.UID, opts ...client.ListOption) e
 			}
 		}
 	}
-	//fmt.Println("\n-----------------")
+	// fmt.Println("\n-----------------")
 	return nil
 }
 

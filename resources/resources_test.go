@@ -338,8 +338,8 @@ func TestMakeQueryRegisteredType(t *testing.T) {
 	assert.Equal(t, query.GVK.Kind, "Deployment")
 }
 
-//A lot of our methods care about unstructured.Unstructured, so we need to be able to produce those
-//in various states for tests. Thankfully we can unmarshall them from JSON!
+// A lot of our methods care about unstructured.Unstructured, so we need to be able to produce those
+// in various states for tests. Thankfully we can unmarshall them from JSON!
 func ConvertJSONToUnstructured(jsonInput string) unstructured.Unstructured {
 
 	data := unstructured.Unstructured{}
@@ -450,9 +450,9 @@ func TestReadyResourceListNoReadyRequirements(t *testing.T) {
 	assert.Equal(t, rl.Count()-rl.CountReady(), rl.Count())
 }
 
-//We can't fully test this object
-//Its primary public method requires talking to k8s - that's a
-//huge part of its value. However, we can test everything the method does
+// We can't fully test this object
+// Its primary public method requires talking to k8s - that's a
+// huge part of its value. However, we can test everything the method does
 func TestResourceCounterMixedMultipleNamespaces(t *testing.T) {
 
 	rc := ResourceCounter{
