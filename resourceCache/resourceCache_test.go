@@ -1,4 +1,4 @@
-package resource_cache
+package resourceCache
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func init() {
 	utilruntime.Must(apps.AddToScheme(scheme))
 }
 
-func Run(enableLeaderElection bool, config *rest.Config, signalHandler context.Context) {
+func Run(signalHandler context.Context, enableLeaderElection bool, config *rest.Config) {
 
 	_, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:           scheme,
@@ -57,12 +57,16 @@ func Run(enableLeaderElection bool, config *rest.Config, signalHandler context.C
 	}
 }
 
+func syncLogger(logger *zap.Logger) {
+	_ = logger.Sync()
+}
+
 func TestMain(m *testing.M) {
 	// call flag.Parse() here if TestMain uses flags
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
 	logger, _ = zap.NewProduction()
 	log = zapr.NewLogger(logger)
-	defer logger.Sync()
+	defer syncLogger(logger)
 	log.Info("bootstrapping test environment")
 
 	testEnv = &envtest.Environment{}
@@ -92,12 +96,15 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	nsSpec := &core.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kafka"}}
-	k8sClient.Create(ctx, nsSpec)
+	err = k8sClient.Create(ctx, nsSpec)
+	if err != nil {
+		logger.Fatal("could not create namespace", zap.Error(err))
+	}
 
 	stopManager, cancel := context.WithCancel(context.Background())
-	go Run(false, testEnv.Config, stopManager)
+	go Run(stopManager, false, testEnv.Config)
 
-	retCode := m.Run()
+	m.Run()
 	logger.Info("Stopping test env...")
 	cancel()
 	err = testEnv.Stop()
@@ -105,7 +112,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		logger.Fatal("Failed to tear down env", zap.Error(err))
 	}
-	os.Exit(retCode)
 }
 
 type Key string
@@ -540,7 +546,8 @@ func TestObjectReconcile(t *testing.T) {
 	err = oCache.Update(SingleIdent, &a)
 	assert.Nil(t, err, "create error wasn't nil")
 
-	oCache.ApplyAll()
+	err = oCache.ApplyAll()
+	assert.NoError(t, err, "apply error wasn't nil")
 
 	err = k8sClient.Get(context.Background(), nn, &a)
 	assert.Nil(t, err, "error from k8s client get for configmap")
