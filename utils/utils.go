@@ -25,6 +25,7 @@ import (
 const pCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<>=?@^~"
 const rCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 const lCharSet = "abcdefghijklmnopqrstuvwxyz0123456789"
+const hCharSet = "abcdef0123456789"
 
 // Log is a null logger instance.
 var Log logr.Logger = logr.Discard()
@@ -43,6 +44,11 @@ func buildRandString(n int, charset string) string {
 	}
 
 	return string(b)
+}
+
+// RandString generates a random string of hexadecimal characters of length n
+func RandHexString(n int) string {
+	return buildRandString(n, hCharSet)
 }
 
 // RandString generates a random string of length n

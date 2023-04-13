@@ -51,6 +51,18 @@ func TestRandStringLower(t *testing.T) {
 	assert.NotEqual(t, a, b)
 }
 
+func TestRandHex(t *testing.T) {
+	randomHexStringA := RandHexString(32)
+	randomHexStringB := RandHexString(32)
+	assert.NotEqual(t, (randomHexStringA), len(randomHexStringB))
+	assert.Len(t, randomHexStringA, 32)
+	assert.NotEqual(t, randomHexStringA, randomHexStringB)
+	for _, c := range randomHexStringA {
+		assert.Contains(t, "abcdef0123456789", string(c))
+	}
+
+}
+
 func TestRandPass(t *testing.T) {
 	a, err1 := RandPassword(16)
 	b, err2 := RandPassword(16)
