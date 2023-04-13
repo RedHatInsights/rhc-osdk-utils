@@ -6,12 +6,10 @@ import (
 	b64 "encoding/base64"
 	"fmt"
 	"math/big"
-	mrand "math/rand"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	core "k8s.io/api/core/v1"
@@ -28,10 +26,6 @@ const pCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 const rCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 const lCharSet = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-func init() {
-	mrand.Seed(time.Now().UnixNano())
-}
-
 // Log is a null logger instance.
 var Log logr.Logger = logr.Discard()
 
@@ -39,7 +33,13 @@ func buildRandString(n int, charset string) string {
 	b := make([]byte, n)
 
 	for i := range b {
-		b[i] = charset[mrand.Intn(len(charset))]
+
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			panic(err)
+		}
+
+		b[i] = charset[n.Int64()]
 	}
 
 	return string(b)

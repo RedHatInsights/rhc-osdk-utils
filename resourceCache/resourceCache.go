@@ -1,4 +1,4 @@
-package resourceCache
+package resourcecache
 
 import (
 	"context"
