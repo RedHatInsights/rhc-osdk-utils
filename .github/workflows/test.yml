@@ -25,4 +25,6 @@ jobs:
       - name: Run tests
         run: |
           export KUBEBUILDER_ASSETS=`./setup-envtest use 1.25 -p path`
-          go test -v ./...
+          go test -coverprofile=coverage.out -covermode=atomic -v ./...
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
