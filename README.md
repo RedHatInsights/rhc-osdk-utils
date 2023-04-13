@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils/branch/main/graph/badge.svg?token=??????)](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils)
+[![codecov](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils/branch/master/graph/badge.svg?token=H8CT10UQ3L)](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils)
 
 # Red Hat Cloud Operator SDK Utils
 ### A handy collection of helpful utils for everyday operator development.
