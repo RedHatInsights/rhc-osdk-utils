@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils/branch/main/graph/badge.svg?token=??????)](https://codecov.io/gh/RedHatInsights/rhc-osdk-utils)
+
 # Red Hat Cloud Operator SDK Utils
 ### A handy collection of helpful utils for everyday operator development.
 This document is broken down by package, providing examples of the various types and public APIs.
