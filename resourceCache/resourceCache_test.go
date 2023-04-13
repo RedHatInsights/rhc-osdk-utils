@@ -1,4 +1,4 @@
-package resourceCache
+package resourcecache
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func init() {
 	utilruntime.Must(apps.AddToScheme(scheme))
 }
 
-func Run(signalHandler context.Context, enableLeaderElection bool, config *rest.Config) {
+func Run(_ context.Context, enableLeaderElection bool, config *rest.Config) {
 
 	_, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:           scheme,
