@@ -205,6 +205,25 @@ a second API write.
 NewSingleResourceIdent("prov", "purpose", &core.ConfigMap{}, rc.ResourceOptions{WriteNow: true})
 ```
 
+### Custom apply ordering
+Sometimes there are situations where you want to order the application of resources to the cluster,
+that is, certain types should be applied first. Applying a ConfigMap after a Deployment that relies
+on it, can cause the Deployment to initially fail. The ordering can be supplied as follows:
+
+```go
+var applyOrder []string = []string{
+	"*",
+	"Deployment",
+	"Job",
+	"CronJob",
+	"ScaledObject",
+}
+
+config := NewCacheConfig(scheme, nil, nil, Options{
+  Ordering: applyOrder,
+})
+```
+
 ### Debugging
 There is a debug options struct which can be passed to the `config.Options` enabling independent
 logging for `create`, `update` and `apply` operations.

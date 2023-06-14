@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/RedHatInsights/go-difflib/difflib"
 	"github.com/RedHatInsights/rhc-osdk-utils/utils"
@@ -149,6 +150,16 @@ func NewCacheConfig(scheme *runtime.Scheme, possibleGVKs, protectedGVKs GVKMap, 
 	if len(options) >= 1 {
 		optionObject = options[0]
 	}
+
+	if len(optionObject.Ordering) == 0 {
+		optionObject.Ordering = []string{
+			"*",
+			"Deployment",
+			"Job",
+			"CronJob",
+		}
+	}
+
 	return &CacheConfig{
 		possibleGVKs:  possibleGVKs,
 		protectedGVKs: protectedGVKs,
@@ -166,6 +177,7 @@ type DebugOptions struct {
 
 type Options struct {
 	StrictGVK    bool
+	Ordering     []string
 	DebugOptions DebugOptions
 }
 
@@ -472,31 +484,71 @@ func (o *ObjectCache) Status(resourceIdent ResourceIdent, object client.Object) 
 	return nil
 }
 
+type ObjectToApply struct {
+	Ident          ResourceIdent
+	NamespacedName types.NamespacedName
+	Resource       *k8sResource
+}
+
+// Define a collect type that implements the sort.Interface
+type objectsToApply struct {
+	objs   []ObjectToApply
+	scheme *runtime.Scheme
+	order  []string
+}
+
+func indexOf(elem string, data []string) int {
+	for k, v := range data {
+		if elem == v {
+			return k
+		}
+	}
+	return -1
+}
+
+func (u objectsToApply) Len() int {
+	return len(u.objs)
+}
+
+func (u objectsToApply) Swap(i, j int) {
+	u.objs[i], u.objs[j] = u.objs[j], u.objs[i]
+}
+
+func (u objectsToApply) Less(i, j int) bool {
+	k1 := "*"
+	gvk, err := utils.GetKindFromObj(u.scheme, u.objs[i].Ident.GetType())
+	if err == nil {
+		k1 = gvk.Kind
+	}
+
+	k2 := "*"
+	gvk, err = utils.GetKindFromObj(u.scheme, u.objs[j].Ident.GetType())
+	if err == nil {
+		k2 = gvk.Kind
+	}
+	i1 := indexOf(k1, u.order)
+	i2 := indexOf(k2, u.order)
+	return i1 < i2
+}
+
 // ApplyAll takes all the items in the cache and tries to apply them, given the boolean by the
 // update field on the internal resource. If the update is true, then the object will by applied, if
 // it is false, then the object will be created.
 func (o *ObjectCache) ApplyAll() error {
-	first := map[ResourceIdent]map[types.NamespacedName]*k8sResource{}
-	last := map[ResourceIdent]map[types.NamespacedName]*k8sResource{}
-	for k, v := range o.data {
-		gvk, err := utils.GetKindFromObj(o.scheme, k.GetType())
-		if err != nil {
-			return err
-		}
-		kind := gvk.Kind
-		if kind == "Deployment" || kind == "Job" || kind == "CronJob" {
-			last[k] = v
-		} else {
-			first[k] = v
+	dataToSort := objectsToApply{scheme: o.scheme, order: o.config.options.Ordering}
+	for res := range o.data {
+		for nn := range o.data[res] {
+			dataToSort.objs = append(dataToSort.objs, ObjectToApply{
+				Ident:          res,
+				NamespacedName: nn,
+				Resource:       o.data[res][nn],
+			})
 		}
 	}
 
-	err := o.applyResourceCache(first)
-	if err != nil {
-		return err
-	}
+	sort.Sort(dataToSort)
 
-	err = o.applyResourceCache(last)
+	err := o.applyResourceCache(dataToSort)
 	if err != nil {
 		return err
 	}
@@ -504,42 +556,40 @@ func (o *ObjectCache) ApplyAll() error {
 	return nil
 }
 
-func (o *ObjectCache) applyResourceCache(cachedData map[ResourceIdent]map[types.NamespacedName]*k8sResource) error {
-	for k, v := range cachedData {
-		if k.GetWriteNow() {
+func (o *ObjectCache) applyResourceCache(cachedData objectsToApply) error {
+	for _, v := range cachedData.objs {
+		if v.Ident.GetWriteNow() {
 			continue
 		}
-		for n, i := range v {
-			if o.config.options.DebugOptions.Apply {
-				jsonData, _ := json.MarshalIndent(i.Object, "", "  ")
-				diff := difflib.UnifiedDiff{
-					A:        difflib.SplitLines(string(jsonData)),
-					B:        difflib.SplitLines(i.jsonData),
-					FromFile: "old",
-					ToFile:   "new",
-					Context:  3,
-				}
-				text, _ := difflib.GetUnifiedDiffString(diff)
-				if i.Object.GetObjectKind().GroupVersionKind() == secretCompare {
-					o.log.Info("Update diff", "diff", "hidden", "type", "update", "resType", i.Object.GetObjectKind().GroupVersionKind().Kind, "name", n.Name, "namespace", n.Namespace)
-				} else {
-					o.log.Info("Update diff", "diff", text, "type", "update", "resType", i.Object.GetObjectKind().GroupVersionKind().Kind, "name", n.Name, "namespace", n.Namespace)
-				}
+		if o.config.options.DebugOptions.Apply {
+			jsonData, _ := json.MarshalIndent(v.Resource.Object, "", "  ")
+			diff := difflib.UnifiedDiff{
+				A:        difflib.SplitLines(string(jsonData)),
+				B:        difflib.SplitLines(v.Resource.jsonData),
+				FromFile: "old",
+				ToFile:   "new",
+				Context:  3,
 			}
-
-			if !equality.Semantic.DeepEqual(i.origObject, i.Object) || !bool(i.Update) {
-				o.log.Info("APPLY resource ", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", false)
-				if err := i.Update.Apply(o.ctx, o.client, i.Object); err != nil {
-					return err
-				}
+			text, _ := difflib.GetUnifiedDiffString(diff)
+			if v.Resource.Object.GetObjectKind().GroupVersionKind() == secretCompare {
+				o.log.Info("Update diff", "diff", "hidden", "type", "update", "resType", v.Resource.Object.GetObjectKind().GroupVersionKind().Kind, "name", v.NamespacedName.Name, "namespace", v.NamespacedName.Namespace)
 			} else {
-				o.log.Info("APPLY resource (skipped)", "namespace", n.Namespace, "name", n.Name, "provider", k.GetProvider(), "purpose", k.GetPurpose(), "kind", i.Object.GetObjectKind().GroupVersionKind().Kind, "update", i.Update, "skipped", true)
+				o.log.Info("Update diff", "diff", text, "type", "update", "resType", v.Resource.Object.GetObjectKind().GroupVersionKind().Kind, "name", v.NamespacedName.Name, "namespace", v.NamespacedName.Namespace)
 			}
+		}
 
-			if i.Status {
-				if err := o.client.Status().Update(o.ctx, i.Object); err != nil {
-					return err
-				}
+		if !equality.Semantic.DeepEqual(v.Resource.origObject, v.Resource.Object) || !bool(v.Resource.Update) {
+			o.log.Info("APPLY resource ", "namespace", v.NamespacedName.Namespace, "name", v.NamespacedName.Name, "provider", v.Ident.GetProvider(), "purpose", v.Ident.GetPurpose(), "kind", v.Resource.Object.GetObjectKind().GroupVersionKind().Kind, "update", v.Resource.Update, "skipped", false)
+			if err := v.Resource.Update.Apply(o.ctx, o.client, v.Resource.Object); err != nil {
+				return err
+			}
+		} else {
+			o.log.Info("APPLY resource (skipped)", "namespace", v.NamespacedName.Namespace, "name", v.NamespacedName.Name, "provider", v.Ident.GetProvider(), "purpose", v.Ident.GetPurpose(), "kind", v.Resource.Object.GetObjectKind().GroupVersionKind().Kind, "update", v.Resource.Update, "skipped", true)
+		}
+
+		if v.Resource.Status {
+			if err := o.client.Status().Update(o.ctx, v.Resource.Object); err != nil {
+				return err
 			}
 		}
 	}
