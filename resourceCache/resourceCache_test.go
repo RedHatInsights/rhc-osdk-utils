@@ -3,6 +3,7 @@ package resourcecache
 import (
 	"context"
 	"os"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -344,6 +345,131 @@ func TestObjectCacheOrdering(t *testing.T) {
 			t.Fatal("deployment was created before this resource, error!")
 		}
 	}
+}
+
+var applyOrder = []string{
+	"*",
+	"Service",
+	"Secret",
+	"Deployment",
+	"Job",
+	"CronJob",
+	"ScaledObject",
+}
+
+func TestOrderingSort(t *testing.T) {
+	config := NewCacheConfig(scheme, nil, nil, Options{
+		Ordering: applyOrder,
+	})
+
+	ctx := context.Background()
+	oCache := NewObjectCache(ctx, k8sClient, &log, config)
+
+	nn := types.NamespacedName{
+		Name:      "test-ordering",
+		Namespace: "default",
+	}
+
+	cf := core.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Data: map[string]string{
+			"happy":     "good",
+			"colour me": "good",
+		},
+	}
+
+	SingleIdentCF := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN-CF",
+		Type:     &core.ConfigMap{},
+	}
+
+	err := oCache.Create(SingleIdentCF, nn, &cf)
+	assert.Nil(t, err, "error from create call for cf")
+
+	sec := core.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		StringData: map[string]string{
+			"happy":     "good",
+			"colour me": "good",
+		},
+	}
+
+	SingleIdentSec := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN-SEC",
+		Type:     &core.Secret{},
+	}
+
+	err = oCache.Create(SingleIdentSec, nn, &sec)
+	assert.Nil(t, err, "error from create call for sec")
+
+	a := apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"test": "test",
+				},
+			},
+			Template: core.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"test": "test",
+					},
+				},
+				Spec: core.PodSpec{
+					Containers: []core.Container{{
+						Name:  "test",
+						Image: "test",
+					}},
+				},
+			},
+		},
+	}
+
+	SingleIdentDeploy := ResourceIdentSingle{
+		Provider: "TEST",
+		Purpose:  "MAIN-DEP",
+		Type:     &apps.Deployment{},
+	}
+
+	err = oCache.Create(SingleIdentDeploy, nn, &a)
+	assert.Nil(t, err, "error from create call")
+
+	ss := createRandomServices(250)
+	for _, s := range ss {
+		err = oCache.Create(s.ident, s.nn, s.obj)
+		assert.Nil(t, err, "error from create call inside 250 loop")
+	}
+
+	dataToSort := objectsToApply{scheme: oCache.scheme, order: applyOrder}
+	for res := range oCache.data {
+		for nn := range oCache.data[res] {
+			dataToSort.objs = append(dataToSort.objs, ObjectToApply{
+				Ident:          res,
+				NamespacedName: nn,
+				Resource:       oCache.data[res][nn],
+			})
+		}
+	}
+
+	sort.Sort(dataToSort)
+	gvk, err := utils.GetKindFromObj(oCache.scheme, dataToSort.objs[len(dataToSort.objs)-1].Ident.GetType())
+	assert.NoError(t, err)
+	assert.Equal(t, "Deployment", gvk.Kind)
+	gvk, err = utils.GetKindFromObj(oCache.scheme, dataToSort.objs[len(dataToSort.objs)-2].Ident.GetType())
+	assert.NoError(t, err)
+	assert.Equal(t, "Secret", gvk.Kind)
 }
 
 func TestObjectCachePreseedStrictFail(t *testing.T) {
