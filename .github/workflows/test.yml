@@ -12,19 +12,19 @@ jobs:
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.18.10'
+          go-version: '1.20'
       - name: Check out source code
         uses: actions/checkout@v2
       - name: Install package and dependencies
         run: |
-          GOBIN=$PWD go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+          GOBIN=$PWD go install sigs.k8s.io/controller-runtime/tools/setup-envtest@d0396a3d6f9fb554ef2da382a3d0bf05f7565e65
       - name: Install k8s
         run: |
-          ./setup-envtest use 1.25 -p path
+          ./setup-envtest use 1.28 -p path
           ./setup-envtest list
       - name: Run tests
         run: |
-          export KUBEBUILDER_ASSETS=`./setup-envtest use 1.25 -p path`
+          export KUBEBUILDER_ASSETS=`./setup-envtest use 1.28 -p path`
           go test -coverprofile=coverage.out -covermode=atomic -v ./...
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
