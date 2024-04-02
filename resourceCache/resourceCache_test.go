@@ -48,7 +48,6 @@ func Run(_ context.Context, enableLeaderElection bool, config *rest.Config) {
 
 	_, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:           scheme,
-		Port:             9443,
 		LeaderElection:   enableLeaderElection,
 		LeaderElectionID: "068b0003.cloud.redhat.com",
 	})
