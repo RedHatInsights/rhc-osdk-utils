@@ -302,7 +302,7 @@ func MakePVC(pvc *core.PersistentVolumeClaim, nn types.NamespacedName, labels ma
 	labeler := GetCustomLabeler(labels, nn, baseResource)
 	labeler(pvc)
 	pvc.Spec.AccessModes = []core.PersistentVolumeAccessMode{core.ReadWriteOnce}
-	pvc.Spec.Resources = core.ResourceRequirements{
+	pvc.Spec.Resources = core.VolumeResourceRequirements{
 		Requests: core.ResourceList{
 			core.ResourceName(core.ResourceStorage): resource.MustParse(size),
 		},
