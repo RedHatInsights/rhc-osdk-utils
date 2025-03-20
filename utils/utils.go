@@ -63,9 +63,9 @@ func RandPassword(n int, charset ...string) (string, error) {
 
 	b := make([]byte, n)
 
-	max := big.NewInt(int64(len(usedCharset)))
+	maxIdx := big.NewInt(int64(len(usedCharset)))
 	for i := range b {
-		num, err := rand.Int(rand.Reader, max) // nolint:gosec
+		num, err := rand.Int(rand.Reader, maxIdx) // nolint:gosec
 		if err != nil {
 			return "", err
 		}
@@ -186,7 +186,7 @@ func B64Decode(s *core.Secret, key string) (string, error) {
 	return string(decoded), nil
 }
 
-func intMinMax(listStrInts []string, max bool) (string, error) {
+func intMinMax(listStrInts []string, useMax bool) (string, error) {
 	var listInts []int
 	for _, strint := range listStrInts {
 		i, err := strconv.Atoi(strint)
@@ -197,7 +197,7 @@ func intMinMax(listStrInts []string, max bool) (string, error) {
 	}
 	ol := listInts[0]
 	for i, e := range listInts {
-		if max {
+		if useMax {
 			if i == 0 || e > ol {
 				ol = e
 			}
