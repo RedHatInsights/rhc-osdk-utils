@@ -1,9 +1,12 @@
 package logging
 
 import (
+	"context"
 	"os"
 	"time"
 
+	v2config "github.com/aws/aws-sdk-go-v2/config"
+	v2credentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	zzap "go.uber.org/zap"
@@ -32,9 +35,20 @@ func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
 	region := os.Getenv("AWS_CW_REGION")
 
 	if !disableCloudwatch && key != "" {
-		cred := credentials.NewStaticCredentials(key, secret, "")
-		cfg := aws.NewConfig().WithRegion(region).WithCredentials(cred)
-		cwLogger, err := pgm.NewBatchingHook(group, stream, cfg, time.Second*5)
+		// Load v2 config for validation and future use
+		_, err := v2config.LoadDefaultConfig(context.TODO(),
+			v2config.WithRegion(region),
+			v2config.WithCredentialsProvider(v2credentials.NewStaticCredentialsProvider(key, secret, "")),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create v1 config for compatibility with platform-go-middlewares
+		v1Creds := credentials.NewStaticCredentials(key, secret, "")
+		v1Config := aws.NewConfig().WithRegion(region).WithCredentials(v1Creds)
+
+		cwLogger, err := pgm.NewBatchingHook(group, stream, v1Config, time.Second*5)
 
 		if err != nil {
 			return nil, err
