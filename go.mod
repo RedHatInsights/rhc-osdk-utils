@@ -4,7 +4,7 @@ go 1.22.9
 
 require (
 	github.com/RedHatInsights/go-difflib v1.0.0
-	github.com/aws/aws-sdk-go v1.44.211
+	github.com/aws/aws-sdk-go v1.38.51
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/redhatinsights/platform-go-middlewares v0.20.0
