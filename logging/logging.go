@@ -13,8 +13,8 @@ import (
 )
 
 func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
-	fn := zzap.LevelEnablerFunc(func(_ zapcore.Level) bool {
-		return true
+	fn := zzap.LevelEnablerFunc(func(l zapcore.Level) bool {
+		return l >= zapcore.DebugLevel
 	})
 
 	consoleOutput := zapcore.Lock(os.Stdout)
