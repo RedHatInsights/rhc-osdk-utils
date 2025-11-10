@@ -12,11 +12,6 @@ import (
 	pgm "github.com/redhatinsights/platform-go-middlewares/logging/cloudwatch"
 )
 
-// intToZapLevel converts an integer log level to zapcore.Level
-func intToZapLevel(level int) zapcore.Level {
-	return zapcore.Level(int8(level))
-}
-
 // buildCore creates the zapcore.Core with console and optional CloudWatch outputs
 func buildCore(disableCloudwatch bool, levelEnabler zapcore.LevelEnabler) (zapcore.Core, error) {
 	consoleOutput := zapcore.Lock(os.Stdout)
@@ -73,10 +68,9 @@ func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
 }
 
 // SetupLoggingWithLevel sets up a logger that filters logs below the specified level
-func SetupLoggingWithLevel(disableCloudwatch bool, level int) (*zzap.Logger, error) {
-	zapLevel := intToZapLevel(level)
+func SetupLoggingWithLevel(disableCloudwatch bool, level int8) (*zzap.Logger, error) {
 	fn := zzap.LevelEnablerFunc(func(l zapcore.Level) bool {
-		return l >= zapLevel
+		return l >= zapcore.Level(level)
 	})
 
 	core, err := buildCore(disableCloudwatch, fn)
