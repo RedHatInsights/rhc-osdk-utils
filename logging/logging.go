@@ -12,15 +12,18 @@ import (
 	pgm "github.com/redhatinsights/platform-go-middlewares/logging/cloudwatch"
 )
 
-func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
-	fn := zzap.LevelEnablerFunc(func(l zapcore.Level) bool {
-		return l >= zapcore.DebugLevel
-	})
+// intToZapLevel converts an integer log level to zapcore.Level
+func intToZapLevel(level int) zapcore.Level {
+	return zapcore.Level(int8(level))
+}
 
+// buildCore creates the zapcore.Core with console and optional CloudWatch outputs
+func buildCore(disableCloudwatch bool, levelEnabler zapcore.LevelEnabler) (zapcore.Core, error) {
 	consoleOutput := zapcore.Lock(os.Stdout)
 	consoleEncoder := zapcore.NewJSONEncoder(zzap.NewProductionEncoderConfig())
 
 	var core zapcore.Core
+	var err error
 
 	key := os.Getenv("AWS_CW_KEY")
 	secret := os.Getenv("AWS_CW_SECRET")
@@ -41,13 +44,44 @@ func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
 		}
 
 		core = zapcore.NewTee(
-			zapcore.NewCore(consoleEncoder, consoleOutput, fn),
-			zapcore.NewCore(consoleEncoder, cwLogger, fn),
+			zapcore.NewCore(consoleEncoder, consoleOutput, levelEnabler),
+			zapcore.NewCore(consoleEncoder, cwLogger, levelEnabler),
 		)
 	} else {
 		core = zapcore.NewTee(
-			zapcore.NewCore(consoleEncoder, consoleOutput, fn),
+			zapcore.NewCore(consoleEncoder, consoleOutput, levelEnabler),
 		)
+	}
+
+	return core, err
+}
+
+// SetupLogging sets up a logger that accepts all log levels
+func SetupLogging(disableCloudwatch bool) (*zzap.Logger, error) {
+	fn := zzap.LevelEnablerFunc(func(_ zapcore.Level) bool {
+		return true
+	})
+
+	core, err := buildCore(disableCloudwatch, fn)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := zzap.New(core)
+
+	return logger, err
+}
+
+// SetupLoggingWithLevel sets up a logger that filters logs below the specified level
+func SetupLoggingWithLevel(disableCloudwatch bool, level int) (*zzap.Logger, error) {
+	zapLevel := intToZapLevel(level)
+	fn := zzap.LevelEnablerFunc(func(l zapcore.Level) bool {
+		return l >= zapLevel
+	})
+
+	core, err := buildCore(disableCloudwatch, fn)
+	if err != nil {
+		return nil, err
 	}
 
 	logger := zzap.New(core)
