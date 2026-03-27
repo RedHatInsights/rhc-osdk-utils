@@ -333,14 +333,14 @@ func TestObjectCacheOrdering(t *testing.T) {
 	err = k8sClient.Get(context.Background(), nn, &deployment)
 	assert.Nil(t, err, "error from k8s client get for deployment")
 
-	time := deployment.ObjectMeta.CreationTimestamp.Time
+	time := deployment.CreationTimestamp.Time
 
 	clientServiceList := core.ServiceList{}
 	err = k8sClient.List(context.Background(), &clientServiceList)
 	assert.Nil(t, err, "error from list for services call")
 
 	for _, item := range clientServiceList.Items {
-		if item.ObjectMeta.CreationTimestamp.Time.After(time) {
+		if item.CreationTimestamp.After(time) {
 			t.Fatal("deployment was created before this resource, error!")
 		}
 	}
@@ -661,7 +661,7 @@ func TestObjectReconcile(t *testing.T) {
 	err = oCache.Create(SingleIdent, nn, &a)
 	assert.Nil(t, err, "create error wasn't nil")
 
-	a.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+	a.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: "v1",
 		Kind:       "ConfigMap",
 		Name:       nn.Name + "owner",
@@ -747,14 +747,14 @@ func TestObjectReconcileProtected(t *testing.T) {
 	err = oCache.Create(SingleIdentSecret, nn, &b)
 	assert.Nil(t, err, "create error wasn't nil")
 
-	a.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+	a.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: "v1",
 		Kind:       "ConfigMap",
 		Name:       nn.Name + "owner",
 		UID:        owner.UID,
 	}}
 
-	b.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+	b.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: "v1",
 		Kind:       "ConfigMap",
 		Name:       nn.Name + "owner",
