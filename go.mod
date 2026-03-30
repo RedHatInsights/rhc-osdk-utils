@@ -1,6 +1,6 @@
 module github.com/RedHatInsights/rhc-osdk-utils
 
-go 1.22.9
+go 1.25.0
 
 require (
 	github.com/RedHatInsights/go-difflib v1.0.0
