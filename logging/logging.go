@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws"             //nolint:staticcheck // platform-go-middlewares/v2 requires aws-sdk-go v1
+	"github.com/aws/aws-sdk-go/aws/credentials" //nolint:staticcheck // platform-go-middlewares/v2 requires aws-sdk-go v1
 	zzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
