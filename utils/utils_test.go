@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	core "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestConverterFuncs(t *testing.T) {
@@ -159,6 +161,36 @@ func TestMetaMutatorLabelsSingle(t *testing.T) {
 
 	assert.Equal(t, expected, b.GetLabels())
 }
+
+// Updater.Apply error wrapping
+// start
+type mockUpdateClient struct {
+	client.Client
+}
+
+func (m *mockUpdateClient) Update(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+	return assert.AnError
+}
+
+// Asserts the error message format is unchanged
+func TestApplyErrorMessage(t *testing.T) {
+	obj := &core.ConfigMap{}
+	obj.SetName("test")
+	u := Updater(true)
+	err := u.Apply(t.Context(), &mockUpdateClient{}, obj)
+	assert.EqualError(t, err, "error updating resource *v1.ConfigMap test: assert.AnError general error for testing")
+}
+
+// Asserts the error chain is preserved, enabling errors.Is(), errors.As(), and k8serr.IsConflict().
+func TestApplyUnwrapsError(t *testing.T) {
+	obj := &core.ConfigMap{}
+	obj.SetName("test")
+	u := Updater(true)
+	err := u.Apply(t.Context(), &mockUpdateClient{}, obj)
+	assert.ErrorIs(t, err, assert.AnError)
+}
+
+// end
 
 func TestMetaMutatorLabelsMulti(t *testing.T) {
 	initLabels := map[string]string{
