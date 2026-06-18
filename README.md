@@ -229,7 +229,79 @@ There is a debug options struct which can be passed to the `config.Options` enab
 logging for `create`, `update` and `apply` operations.
 
 ## Utils
-TODO
+The utils package provides general-purpose Kubernetes operator utilities. The central type is
+`Updater`, a bool that encapsulates the create-or-update pattern: `true` means the resource already
+exists and should be updated, `false` means it should be created.
+
+### Updater
+`UpdateOrErr` converts a `client.Get` error into an `Updater` value. The `Apply` method then calls
+`client.Create` or `client.Update` accordingly.
+
+```go
+update, err := utils.UpdateOrErr(cl.Get(ctx, nn, obj))
+if err != nil {
+    return err
+}
+err = update.Apply(ctx, cl, obj)
+```
+
+For batch operations, `UpdateAllOrErr` queries multiple objects at once and `ApplyAll` applies them:
+
+```go
+updates, err := utils.UpdateAllOrErr(ctx, cl, nn, obj1, obj2, obj3)
+if err != nil {
+    return err
+}
+err = utils.ApplyAll(ctx, cl, updates)
+```
+
+### Resource helpers
+Several helpers simplify common resource construction tasks:
+
+* `MakeOwnerReference(obj)` -- creates an `OwnerReference` from any `client.Object`
+* `MakeLabeler(nn, labels, owner)` -- returns a function that sets name, namespace, labels, and
+  owner references on any `metav1.Object`
+* `GetCustomLabeler(labels, nn, base)` -- same as `MakeLabeler` but merges labels with those
+  already on the base resource
+* `MakeService(svc, nn, labels, ports, owner, nodePort)` -- configures a `core.Service` with
+  labels, ports, and optional NodePort
+* `MakePVC(pvc, nn, labels, size, owner)` -- configures a `PersistentVolumeClaim`
+* `CopySecret(ctx, client, src, dst)` -- copies a `Secret` from one `NamespacedName` to another
+* `GetKindFromObj(scheme, obj)` -- retrieves the `GroupVersionKind` for a registered runtime object
+
+### Pointer helpers
+Convenience functions for creating pointers to literal values, useful in Kubernetes specs:
+
+`IntPtr`, `Int32Ptr`, `Int64Ptr`, `BoolPtr`, `TruePtr`, `FalsePtr`, `StringPtr`
+
+### Other utilities
+* `RandString(n)`, `RandStringLower(n)`, `RandHexString(n)` -- random string generators
+* `RandPassword(n)` -- random password generator (minimum 14 characters)
+* `Int32(n)`, `Atoi32(s)` -- safe integer conversions
+* `Contains(list, s)` -- string slice membership check
+* `IntMin(list)`, `IntMax(list)` -- min/max over string-encoded integers
+* `ListMerge(list)` -- set union of comma-separated string lists
+* `B64Decode(secret, key)` -- base64 decode a secret key
+* `UpdateAnnotations(obj, maps...)`, `UpdateLabels(obj, maps...)` -- merge annotations or labels
+
+## Logging
+The logging package configures structured logging with [zap](https://pkg.go.dev/go.uber.org/zap)
+and optional [CloudWatch](https://aws.amazon.com/cloudwatch/) integration via
+[platform-go-middlewares](https://github.com/RedHatInsights/platform-go-middlewares).
+
+```go
+// Basic setup -- accepts all log levels
+logger, err := logging.SetupLogging(false)
+defer logger.Sync()
+
+// With level filtering (e.g., info and above)
+logger, err := logging.SetupLoggingWithLevel(false, 0)
+```
+
+CloudWatch streaming is enabled automatically when the following environment variables are set:
+`AWS_CW_KEY`, `AWS_CW_SECRET`, `AWS_CW_LOG_GROUP`, `AWS_CW_REGION`. Optionally set
+`AWS_CW_ENDPOINT` for a custom endpoint. Pass `true` as the first argument to disable CloudWatch
+even when the variables are present.
 
 ## Resources
 The resources package provides a type neutral way to query, count, and check the status of k8s
@@ -383,7 +455,24 @@ ready := resource.IsReady()
 ```
 See the code for the full public API.
 
+## Development
 
+### Prerequisites
+
+- Go (see `go.mod` for version)
+- [Podman](https://podman.io) (for linting)
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `make test` | Run tests (requires envtest; also runs `fmt` and `vet`) |
+| `make lint` | Run golangci-lint via Podman |
+| `make fmt` | Format code with `go fmt` |
+| `make vet` | Run `go vet` |
+
+Tests in the `resourceCache` package require [envtest](https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/envtest)
+to provide a local Kubernetes API server. The `make test` target handles envtest setup automatically.
 
 
 ---
