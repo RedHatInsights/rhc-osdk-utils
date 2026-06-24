@@ -459,7 +459,7 @@ See the code for the full public API.
 
 ### Prerequisites
 
-- Go (see `go.mod` for version)
+- **Go** 1.25+
 - [Podman](https://podman.io) (for linting)
 
 ### Commands
