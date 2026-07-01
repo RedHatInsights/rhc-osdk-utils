@@ -13,21 +13,22 @@ optional CloudWatch integration (`logging`).
 
 ### Runtime
 
-- **Go** 1.25.0 (per `go.mod`)
-- [controller-runtime][controller-runtime] v0.23.1
-- [client-go][client-go] v0.35.2
-- [k8s.io/api][k8s-api] v0.35.2 and [k8s.io/apimachinery][k8s-apimachinery] v0.35.2
-- [aws-sdk-go][aws-sdk-go] v1.55.8 (required by platform-go-middlewares v2)
-- [platform-go-middlewares/v2][pgm] v2.1.0 (CloudWatch logging)
-- [go-logr/logr][logr] v1.4.3 and [go-logr/zapr][zapr] v1.3.0
-- [go.uber.org/zap][zap] v1.27.1
-- [go-difflib][go-difflib] v1.0.0 (debug diffs in resource cache)
+- **Go** 1.25+
+- [controller-runtime][controller-runtime]
+- [client-go][client-go]
+- [k8s.io/api][k8s-api] and [k8s.io/apimachinery][k8s-apimachinery]
+- [aws-sdk-go][aws-sdk-go] v1 (required by platform-go-middlewares v2)
+- [platform-go-middlewares/v2][pgm] (CloudWatch logging)
+- [go-logr/logr][logr] and [go-logr/zapr][zapr]
+- [go.uber.org/zap][zap]
+- [go-difflib][go-difflib] (debug diffs in resource cache)
 
 ### Dev / Test
 
-- [testify][testify] v1.11.1
+- [testify][testify]
 - [controller-runtime/pkg/envtest][envtest] (local Kubernetes API server for tests)
-- [golangci-lint][golangci-lint] v2.11.4 (run via Podman)
+- [golangci-lint][golangci-lint] (run via Podman)
+- [Podman](https://podman.io) (for linting)
 - No build dependencies beyond the standard Go toolchain and Make
 
 ## Development Commands
@@ -64,7 +65,7 @@ descriptions, key types, component interactions, and data flow diagrams.
 
 ### Linters
 
-The following linters are enabled in `.golangci.yml` (golangci-lint v2 config):
+The following linters are enabled in `.golangci.yml` (golangci-lint config):
 
 - `bodyclose` -- checks HTTP response body closure
 - `errcheck` -- checks for unchecked errors

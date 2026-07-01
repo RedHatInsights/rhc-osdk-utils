@@ -1,28 +1,34 @@
+---
 name: Go
 
 on:
-  - pull_request
-permissions:
-  contents: read
-  # Optional: allow read access to pull request.  Use with 'only-new-issues' option.
-  # pull-requests: read
+  pull_request:
+    branches:
+      - "*"
+
+permissions: {}
+
 jobs:
   golangci:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - name: Display build environment
-        run: printenv
+      - name: Checkout rhc-osdk-utils
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          show-progress: false
+          persist-credentials: false
 
-      - uses: actions/checkout@v4
-        name: Checkout rhc-osdk-utils
-
-      - uses: actions/setup-go@v5
-        name: Set up Go 1.x
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        name: Set up Go
         with:
           go-version-file: "go.mod"
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
-          version: v2.11.4
+          version: v2.12.2
+          only-new-issues: true
